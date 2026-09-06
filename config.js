@@ -16,5 +16,10 @@ window.CHIPATAP_CONFIG = {
   // Вкладка «Отзывы»
   REVIEWS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZbkNfQpB7D6NgcWoCxegvLRwxSN6LfFfntwWhZjd2QB-JoCQ-vydkmpI-HLaGiSMfDqUBwSbcKSBB/pub?gid=1034499079&single=true&output=csv',
   // Веб-приложение Google Apps Script — приём отзывов и идей без закрытия Mini App
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbzu2RZJQTW-B10h8JDe3FDClWCgYmqRjI-_rjMqNWqjtkEFsk_1ckaiXjcojDcaZNix/exec'
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzu2RZJQTW-B10h8JDe3FDClWCgYmqRjI-_rjMqNWqjtkEFsk_1ckaiXjcojDcaZNix/exec',
+  // Приём заказов из магазина, открытого прямой ссылкой из канала.
+  // Отдельный скрипт от GAS_URL — см. apps_script_orders.gs в репозитории бота.
+  // Пусто — заказ оттуда не оформить, магазин честно скажет об этом.
+  ORDERS_GAS_URL: '',
+  ORDERS_TOKEN: 'OOO90Ky9XC1oTUgKUpAJ-TAB'
 };

@@ -1069,6 +1069,10 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
   var BALANCE_CSV_URL = CFG.BALANCE_CSV_URL || '';
   var REVIEWS_CSV_URL = CFG.REVIEWS_CSV_URL || '';
   var GAS_URL = CFG.GAS_URL || '';
+  // Отдельный адрес для заказов: у отзывов и заказов разные скрипты, чтобы
+  // переразвёртывание одного не роняло приём другого.
+  var ORDERS_URL = CFG.ORDERS_GAS_URL || '';
+  var ORDERS_TOKEN = CFG.ORDERS_TOKEN || '';
 
   var BOT_USERNAME = 'chipatapbot';
   // uid обычно приходит параметром от бота — у приложения, открытого
@@ -2314,10 +2318,25 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
       showOrderProblem('Не удалось определить твой аккаунт Telegram. Открой магазин кнопкой «🛒 Открыть магазин» в чате с ботом.');
       return;
     }
+    // Приёмник заказов не настроен — молчать нельзя: ответ Apps Script всё
+    // равно не прочитать (no-cors), и без этой проверки человек увидел бы
+    // «заказ отправлен» там, где заказ уходит в никуда.
+    if(!ORDERS_URL){
+      showOrderProblem('Отсюда заказ пока не оформить. Открой магазин кнопкой «🛒 Открыть магазин» в чате с ботом — там оформление работает.');
+      return;
+    }
     order.action='order';
+    order.token=ORDERS_TOKEN;
     order.user_id=MY_UID;
     order.name=MY_NAME;
-    if(!sendToGAS(order)){
+    try{
+      fetch(ORDERS_URL, {
+        method:'POST',
+        mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify(order)
+      }).catch(function(e){ console.error('ORDERS error', e); });
+    }catch(e){
       showOrderProblem('Заказ не отправился. Открой магазин кнопкой «🛒 Открыть магазин» в чате с ботом и попробуй ещё раз.');
       return;
     }
