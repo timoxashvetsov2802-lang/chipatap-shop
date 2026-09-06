@@ -20,6 +20,6 @@ window.CHIPATAP_CONFIG = {
   // Приём заказов из магазина, открытого прямой ссылкой из канала.
   // Отдельный скрипт от GAS_URL — см. apps_script_orders.gs в репозитории бота.
   // Пусто — заказ оттуда не оформить, магазин честно скажет об этом.
-  ORDERS_GAS_URL: '',
+  ORDERS_GAS_URL: 'https://script.google.com/macros/s/AKfycbyAyw3dZLnAIBCdOzWQcBQEP8-4dYDpkp-cCfPKIAamT-v9TJTItt_pOb_JAswyA0T2/exec',
   ORDERS_TOKEN: 'OOO90Ky9XC1oTUgKUpAJ-TAB'
 };
