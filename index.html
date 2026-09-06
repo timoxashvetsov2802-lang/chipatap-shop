@@ -231,6 +231,19 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
 /* Экран оформления короткий, но с открытой клавиатурой может не влезть */
 #orderView{overflow-y:auto; -webkit-overflow-scrolling:touch;}
 .order-label{font-size:13px; color:var(--hint); display:block; margin-bottom:6px;}
+/* Слоты времени. Свободное поле человек заполнял как придётся — «вечером»,
+   «после шести», «хз» — и каждый такой заказ приходилось уточнять перепиской.
+   Кнопки дают ровно те варианты, в которые можно выйти. */
+.slot-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+.slot{
+  padding:9px 14px; border-radius:12px; border:1px solid var(--separator);
+  background:var(--bg); font-family:inherit; font-size:14px; color:var(--text);
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.slot.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+.slot-row.invalid .slot{border-color:#ff3b30;}
+.slot-hint{font-size:12px; color:var(--hint); margin:-2px 0 14px;}
 /* Время и комментарий выглядят одинаково — это поля одного веса. */
 .order-field{
   width:100%; box-sizing:border-box; border-radius:12px;
@@ -756,10 +769,14 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
     <p class="order-place">📍 Место встречи: <b id="meetPlace">Маршала Жукова 20</b><button type="button" id="copyPlace" class="copy-inline" aria-label="Скопировать адрес">📋</button></p>
 
     <label class="order-label">Время встречи <span style="color:#ff3b30">*</span></label>
-    <input id="orderTime" class="order-field" type="text" placeholder="сегодня в 18:00">
+    <div id="daySlots" class="slot-row"></div>
+    <div id="timeSlots" class="slot-row"></div>
+    <div id="timeHint" class="slot-hint"></div>
+    <!-- Выбранное складывается сюда в том же виде, в каком его читает бот. -->
+    <input id="orderTime" type="hidden">
 
-    <label class="order-label">Комментарий</label>
-    <textarea id="orderContact" class="order-field" rows="2"></textarea>
+    <label class="order-label">Комментарий <span style="opacity:.7">— необязательно</span></label>
+    <textarea id="orderContact" class="order-field" rows="2" placeholder="Например: буду на самокате, наберите как подойдёте"></textarea>
 
     <div id="orderProblem" style="display:none; background:rgba(255,59,48,0.12); color:#ff3b30; border-radius:12px; padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:12px;"></div>
 
@@ -2237,16 +2254,124 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
     }
 
     renderOrderTotal();
+    renderMeetTimePicker();
     showStep('orderView');
     haptic('light');
   };
 
   document.getElementById('useBonusCheck').onchange=renderOrderTotal;
 
-  // Начал печатать — красная рамка больше не нужна, ошибка исправлена
-  document.getElementById('orderTime').addEventListener('input',function(){
-    this.classList.remove('invalid');
-  });
+  // --- выбор времени встречи ---
+  // Часы работы. Слоты строятся отсюда, поэтому поменять расписание — это
+  // поменять две цифры, а не переписывать разметку.
+  var WORK_FROM = 10;      // с 10:00
+  var WORK_TO = 22;        // последний слот в 22:00
+  var SLOT_STEP_MIN = 30;  // шаг между слотами
+  var SLOT_LEAD_MIN = 40;  // ближайший слот не раньше чем через столько минут:
+                           // и товар собрать, и дойти до места
+
+  var pickedDay = '';      // 'today' | 'tomorrow'
+  var pickedTime = '';     // 'HH:MM'
+
+  function slotsForDay(day){
+    var out=[];
+    var now=new Date();
+    var earliest=new Date(now.getTime() + SLOT_LEAD_MIN*60000);
+    for(var h=WORK_FROM; h<=WORK_TO; h++){
+      for(var m=0; m<60; m+=SLOT_STEP_MIN){
+        if(h===WORK_TO && m>0) break;   // ровно до WORK_TO:00 включительно
+        if(day==='today'){
+          var t=new Date();
+          t.setHours(h,m,0,0);
+          if(t < earliest) continue;    // время уже прошло или слишком впритык
+        }
+        out.push((h<10?'0':'')+h+':'+(m<10?'0':'')+m);
+      }
+    }
+    return out;
+  }
+
+  function setMeetTime(){
+    var el=document.getElementById('orderTime');
+    if(pickedDay && pickedTime){
+      // Дату пишем рядом со словом: заказ живёт в таблице, и через сутки
+      // «сегодня в 18:00» уже ничего не означает.
+      var d=new Date();
+      if(pickedDay==='tomorrow') d.setDate(d.getDate()+1);
+      var dd=(d.getDate()<10?'0':'')+d.getDate();
+      var mm=(d.getMonth()+1<10?'0':'')+(d.getMonth()+1);
+      el.value=(pickedDay==='today'?'сегодня':'завтра')+' '+dd+'.'+mm+' в '+pickedTime;
+    } else {
+      el.value='';
+    }
+    document.getElementById('daySlots').classList.remove('invalid');
+    document.getElementById('timeSlots').classList.remove('invalid');
+  }
+
+  function renderTimeSlots(){
+    var box=document.getElementById('timeSlots');
+    var hint=document.getElementById('timeHint');
+    box.innerHTML='';
+    if(!pickedDay){
+      hint.textContent='Сначала выбери день.';
+      return;
+    }
+    var slots=slotsForDay(pickedDay);
+    if(!slots.length){
+      // Единственный случай, когда на сегодня не осталось ничего: поздний вечер.
+      hint.textContent='На сегодня время закончилось — выбери «Завтра».';
+      return;
+    }
+    hint.textContent='';
+    slots.forEach(function(t){
+      var b=document.createElement('button');
+      b.type='button';
+      b.className='slot'+(t===pickedTime?' active':'');
+      b.textContent=t;
+      b.onclick=function(){
+        pickedTime=t;
+        renderTimeSlots();
+        setMeetTime();
+        haptic('light');
+      };
+      box.appendChild(b);
+    });
+  }
+
+  function renderDaySlots(){
+    var box=document.getElementById('daySlots');
+    box.innerHTML='';
+    var days=[];
+    if(slotsForDay('today').length) days.push(['today','Сегодня']);
+    days.push(['tomorrow','Завтра']);
+    days.forEach(function(d){
+      var b=document.createElement('button');
+      b.type='button';
+      b.className='slot'+(d[0]===pickedDay?' active':'');
+      b.textContent=d[1];
+      b.onclick=function(){
+        if(pickedDay!==d[0]){ pickedDay=d[0]; pickedTime=''; }
+        renderDaySlots();
+        renderTimeSlots();
+        setMeetTime();
+        haptic('light');
+      };
+      box.appendChild(b);
+    });
+  }
+
+  function renderMeetTimePicker(){
+    // Пересобираем при каждом открытии корзины: приложение могут держать
+    // открытым часами, и слоты, актуальные утром, к вечеру уже прошли.
+    if(pickedDay==='today' && slotsForDay('today').indexOf(pickedTime)===-1){
+      pickedTime='';
+    }
+    renderDaySlots();
+    renderTimeSlots();
+    setMeetTime();
+  }
+
+  renderMeetTimePicker();
 
   Array.prototype.forEach.call(document.querySelectorAll('.back-btn[data-back]'),function(btn){
     btn.onclick=function(){
@@ -2258,13 +2383,15 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
   document.getElementById('orderSendBtn').onclick=function(){
     var timeEl=document.getElementById('orderTime');
     if(!timeEl.value.trim()){
-      toast('Укажи время встречи');
-      timeEl.classList.add('invalid');
-      timeEl.focus();
+      // Подсвечиваем именно тот ряд, где человек не дошёл до конца: день не
+      // выбран — верхний, выбран, но без времени — нижний.
+      var row=document.getElementById(pickedDay ? 'timeSlots' : 'daySlots');
+      toast(pickedDay ? 'Выбери время' : 'Выбери день встречи');
+      row.classList.add('invalid');
+      row.scrollIntoView({behavior:'smooth', block:'center'});
       haptic('heavy');
       return;
     }
-    timeEl.classList.remove('invalid');
     document.getElementById('orderProblem').style.display='none';
     bonusToUse=getBonusToUse();
     submitOrder();
