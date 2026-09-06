@@ -1,13 +1,3119 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow, noarchive">
-<title>&nbsp;</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Chipatap</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Боевые адреса таблиц и Apps Script. Файл в .gitignore, шаблон — config.example.js.
+     При деплое положить рядом с index.html, иначе товары не загрузятся. -->
+<script src="config.js"></script>
 <style>
-  html, body { height: 100%; margin: 0; background: #ffffff; }
+:root{
+  --accent:#3390ec;
+  --new:#34c759;
+  --hit:#ff9500;
+  --radius-lg:18px;
+  --radius-md:14px;
+}
+html[data-theme="light"]{
+  --bg:#f0f0f2;
+  --card:#ffffff;
+  --thumb:#f5f6f8;
+  --text:#0b0b0c;
+  --hint:#8b8d93;
+  --separator:#e6e6e9;
+  --shadow:0 2px 10px rgba(20,20,30,0.06);
+  --sheet-bg:#ffffff;
+  --overlay:rgba(20,20,30,0.5);
+}
+html[data-theme="dark"]{
+  --bg:#0f1621;
+  --card:#1c2733;
+  --thumb:#17212b;
+  --text:#f2f4f6;
+  --hint:#7d8b99;
+  --separator:#0b1017;
+  --shadow:0 2px 14px rgba(0,0,0,0.35);
+  --sheet-bg:#182330;
+  --overlay:rgba(0,0,0,0.6);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input{font-family:inherit; color:inherit;}
+/* Быстрый двойной тап не должен включать зум — от него страница подпрыгивала */
+button, .card, .flavor-card, .qty, .ctl-slot, .admin-row{ touch-action:manipulation; }
+button:focus-visible, input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important; animation:none !important;}
+}
+.app{
+  max-width:480px;
+  margin:0 auto;
+  min-height:100%;
+  background:var(--bg);
+  padding-bottom:100px;
+  position:relative;
+}
+@media (min-width:481px){
+  .app{box-shadow:0 0 40px rgba(0,0,0,0.15); min-height:100vh;}
+}
+/* Шапка листается вместе со списком: приклеенная она ехала за пальцем
+   вниз по экрану и отъедала место у товаров */
+header{
+  position:relative; z-index:20;
+  background:var(--bg);
+  padding:16px 16px 8px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+/* Заголовок забирает свободное место, поэтому бонусы и смена темы
+   прижаты к правому краю, а не висят вплотную к «Chipatap» */
+.brand{ flex:1; min-width:0; }
+.brand h1{font-size:20px; font-weight:700; letter-spacing:-0.2px;}
+.brand p{font-size:13px; color:var(--hint); margin-top:2px;}
+.theme-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--card); border:none; display:flex; align-items:center;justify-content:center;
+  box-shadow:var(--shadow); cursor:pointer;
+  transition:transform .15s;
+}
+.theme-btn:active{transform:scale(0.9);}
+.search-wrap{padding:8px 16px 12px;}
+.search{
+  display:flex; align-items:center; gap:8px;
+  background:var(--card); border-radius:var(--radius-md);
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.search input{
+  border:none; outline:none; background:transparent; flex:1;
+  font-size:15px;
+}
+.search input::placeholder{color:var(--hint);}
+.search svg{color:var(--hint); flex-shrink:0;}
+.chips{
+  display:flex; gap:8px; padding:0 16px 14px; overflow-x:auto;
+  scrollbar-width:none;
+}
+.chips::-webkit-scrollbar{display:none;}
+.chip{
+  flex-shrink:0; padding:8px 16px; border-radius:20px;
+  background:var(--card); font-size:14px; font-weight:500;
+  border:none; cursor:pointer; box-shadow:var(--shadow); white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.chip.active{background:var(--accent); color:#fff;}
+.grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:4px 16px 16px;
+  /* grid-auto-rows:1fr убран: он растянул бы и строку с заголовком раздела
+     до высоты карточки. Карточки и без него одной высоты — внутри всё
+     фиксировано: имя в две строки, строка описания, строка рейтинга */
+}
+.card{
+  background:var(--card); border-radius:var(--radius-lg); overflow:hidden;
+  box-shadow:var(--shadow); display:flex; flex-direction:column; height:100%;
+  position:relative; transition:transform .15s;
+}
+.card:active{transform:scale(0.97);}
+.card.out .thumb::after{
+  content:"Нет в наличии";
+  position:absolute; inset:0; background:var(--overlay);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:12px; font-weight:600; text-align:center; padding:8px;
+}
+.thumb{
+  position:relative; aspect-ratio:1/1; background:var(--thumb);
+  display:flex; align-items:center; justify-content:center;
+  font-size:38px;
+}
+.badge{
+  position:absolute; top:8px; left:8px; z-index:2;
+  padding:3px 9px; border-radius:8px; font-size:11px; font-weight:700; color:#fff;
+}
+.badge.new{background:var(--new);}
+.badge.hit{background:var(--hit);}
+.info{padding:8px 10px 9px; display:flex; flex-direction:column; gap:2px; flex:1;}
+/* Высоты строк заданы жёстко, а не по содержимому: иначе название в две
+   строки сдвигало вниз рейтинг, вкусы и цену, и соседние карточки шли
+   вразнобой. Теперь каждая строка занимает своё место всегда */
+.name{
+  font-size:14px; font-weight:600; line-height:1.25;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  height:2.5em;   /* ровно две строки: 1.25 × 2 */
+}
+.tag{
+  font-size:12px; color:var(--hint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  height:1.35em;  /* строка держится, даже когда описания нет */
+}
+/* Рейтинг и наличие — в одну строку: по отдельности каждый занимал свой ряд
+   и карточка распухала на пустом месте */
+.meta-line{
+  display:flex; align-items:center; gap:8px; font-size:12px; min-height:16px;
+}
+.meta-line .rating{ display:flex; align-items:center; gap:3px; font-weight:700; }
+.meta-line .rating .star{ color:#ff9500; }
+/* Цена и кнопка прижаты к низу карточки, поэтому ряды выравниваются */
+.row-bottom{
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  margin-top:auto; padding-top:4px; flex-wrap:nowrap; min-height:32px;
+}
+.price{
+  font-size:14px; font-weight:700; white-space:nowrap; flex:0 0 auto;
+}
+.add-btn{
+  width:28px;height:28px;border-radius:50%;background:var(--accent);
+  border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  flex-shrink:0; font-size:17px; transition:transform .15s;
+}
+.add-btn:active{transform:scale(0.85);}
+.qty{
+  display:flex; align-items:center; gap:1px; background:var(--bg);
+  border-radius:20px; padding:2px; flex-shrink:0; height:28px; box-sizing:border-box;
+}
+.qty button{
+  width:24px;height:24px;border-radius:50%;border:none;background:var(--card);
+  color:var(--accent); font-size:14px; font-weight:700; cursor:pointer;
+  display:flex;align-items:center;justify-content:center; flex-shrink:0;
+}
+.qty span{font-size:13px; font-weight:700; min-width:12px; text-align:center;}
+.qty-big{ width:100%; height:52px; justify-content:space-between; padding:4px 6px; border-radius:14px; }
+.qty-big button{ width:44px; height:44px; font-size:22px; }
+.qty-big span{ font-size:18px; min-width:40px; }
+.empty-state{
+  grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--hint); font-size:14px;
+}
+/* Заголовок раздела на витрине — во всю ширину сетки, поверх обеих колонок */
+.cat-head{
+  grid-column:1/-1; font-size:17px; font-weight:700; color:var(--text);
+  padding:14px 2px 2px;
+}
+.cat-head:first-child{ padding-top:2px; }
+.cart-bar{
+  position:fixed; left:16px; right:16px; bottom:16px; max-width:448px; margin:0 auto;
+  background:var(--accent); color:#fff; border-radius:16px;
+  padding:14px 18px; display:flex; align-items:center; justify-content:space-between;
+  box-shadow:0 6px 20px rgba(51,144,236,0.4);
+  cursor:pointer; transform:translateY(200%); transition:transform .25s ease, visibility .25s;
+  z-index:30; border:none; font-family:inherit; visibility:hidden; pointer-events:none;
+}
+.cart-bar.show{transform:translateY(0); visibility:visible; pointer-events:auto;}
+.cart-bar .left{display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;}
+.cart-bar .count{
+  background:rgba(255,255,255,0.25); border-radius:10px; padding:2px 8px; font-size:12px;
+}
+.cart-bar .total{font-size:15px; font-weight:700;}
+.sheet-backdrop{
+  position:fixed; inset:0; background:var(--overlay); z-index:40; opacity:0; pointer-events:none;
+  transition:opacity .25s;
+}
+.sheet-backdrop.show{opacity:1; pointer-events:auto;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; max-width:480px; margin:0 auto;
+  background:var(--sheet-bg); border-radius:20px 20px 0 0; z-index:41;
+  padding:10px 16px max(16px,env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .3s ease;
+  max-height:75vh; display:flex; flex-direction:column; overflow-y:auto;
+  /* иначе, докрутив шторку до края, палец продолжал листать витрину под ней */
+  overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+}
+.sheet.show{transform:translateY(0);}
+/* Пока открыта шторка, страница под ней стоит на месте. overflow:hidden в
+   Telegram-браузере не держит, поэтому фиксируем body и запоминаем прокрутку */
+body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden; }
+.handle{width:36px;height:4px;background:var(--separator);border-radius:2px;}
+.handle-zone{padding:14px 0 10px; display:flex; justify-content:center; touch-action:none;}
+.sheet h2{font-size:17px; margin-bottom:12px;}
+.cart-items{overflow-y:auto; flex:1; min-height:0; display:flex; flex-direction:column; gap:14px; margin-bottom:12px;}
+#cartView{display:flex; flex-direction:column; flex:1; min-height:0;}
+/* Экран оформления короткий, но с открытой клавиатурой может не влезть */
+#orderView{overflow-y:auto; -webkit-overflow-scrolling:touch;}
+.order-label{font-size:13px; color:var(--hint); display:block; margin-bottom:6px;}
+/* Время и комментарий выглядят одинаково — это поля одного веса. */
+.order-field{
+  width:100%; box-sizing:border-box; border-radius:12px;
+  border:1px solid var(--separator); background:var(--bg);
+  padding:12px 14px; font-family:inherit; font-size:14px; color:var(--text);
+  margin-bottom:14px; resize:vertical;
+  -webkit-tap-highlight-color:transparent; appearance:none;
+}
+/* Глобальное правило `input:focus-visible{outline:2px solid accent}` (см. выше)
+   специфичнее одиночного класса и рисовало синее кольцо ПОВЕРХ нашей рамки —
+   в том числе поверх красной рамки ошибки. Гасим обоими селекторами сразу:
+   состояние поля должна показывать рамка, а не второй контур вокруг неё. */
+.order-field:focus, .order-field:focus-visible{
+  outline:none; box-shadow:none; border-color:var(--accent);
+}
+/* Незаполненное обязательное поле — красный, и он не уступает фокусу. */
+.order-field.invalid, .order-field.invalid:focus, .order-field.invalid:focus-visible{
+  border-color:#ff3b30; outline:none; box-shadow:none;
+}
+/* Место встречи — обычная строка текста, без плашки. */
+.order-place{font-size:14px; color:var(--hint); margin-bottom:16px;}
+.order-place b{color:var(--text); font-weight:600;}
+.copy-inline{
+  border:none; background:transparent; cursor:pointer; padding:0 0 0 6px;
+  font-size:14px; line-height:1; vertical-align:baseline; font-family:inherit;
+}
+.copy-inline:active{opacity:.5;}
+.cart-item{display:flex; align-items:center; gap:10px;}
+.cart-item .thumb-sm{
+  width:44px;height:44px;border-radius:10px;background:var(--thumb);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden;
+}
+.cart-item .meta{flex:1; min-width:0;}
+.cart-item .meta .name{font-size:13px; -webkit-line-clamp:1;}
+.cart-item .meta .price{font-size:12px; color:var(--hint); font-weight:500;}
+.sheet-footer{border-top:1px solid var(--separator); padding-top:12px;}
+.total-row{display:flex; justify-content:space-between; align-items:center; font-size:15px; margin-bottom:12px;}
+.total-row b{font-size:17px; white-space:nowrap;}
+.checkout-btn{
+  width:100%; padding:15px; border:none; border-radius:14px; background:var(--accent);
+  color:#fff; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit;
+}
+.checkout-btn:active{opacity:0.85;}
+.empty-cart{text-align:center; padding:30px 10px; color:var(--hint); font-size:14px;}
+.back-btn{
+  background:none; border:none; color:var(--accent); font-size:14px; font-weight:600;
+  cursor:pointer; padding:4px 0 14px; display:block;
+}
+/* Стилей способов оплаты здесь больше нет: оплата только наличными при
+   встрече, выбирать во фронтенде нечего. Блок ниже остался от реквизитов,
+   но сейчас его использует реферальная ссылка. */
+.card-requisites{
+  background:var(--bg); border-radius:var(--radius-md); padding:14px; margin-bottom:14px;
+}
+.card-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.card-row span{font-size:17px; font-weight:700; letter-spacing:0.5px;}
+.card-row button{
+  width:32px;height:32px;border-radius:50%;border:none;background:var(--card);
+  cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center;
+}
+.card-sub{font-size:12px; color:var(--hint); margin-top:6px;}
+.admin-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--card); border:none; display:flex; align-items:center;justify-content:center;
+  box-shadow:var(--shadow); cursor:pointer; font-size:16px; margin-right:8px;
+  transition:transform .15s;
+}
+.admin-btn:active{transform:scale(0.9);}
+.admin-add-btn{
+  background:none; border:none; color:var(--accent); font-size:14px; font-weight:600; cursor:pointer;
+}
+.admin-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+.admin-list{overflow-y:auto; flex:1; min-height:0; display:flex; flex-direction:column; gap:14px;}
+#adminListView{display:flex; flex-direction:column; flex:1; min-height:0;}
+#adminFormView{overflow-y:auto; flex:1; min-height:0;}
+/* Строка была залита var(--bg) — тем же цветом, что и фон страницы, поэтому
+   склад читался как пустое полотно. Строка это карточка, значит --card */
+.admin-row{
+  display:flex; align-items:center; gap:11px; background:var(--card);
+  border-radius:var(--radius-md); padding:9px 12px; box-shadow:var(--shadow);
+}
+.admin-row .thumb-sm{
+  width:54px;height:54px;border-radius:12px;background:var(--thumb);
+  display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;
+  overflow:hidden;
+}
+.admin-row .thumb-sm img{width:100%;height:100%;object-fit:cover;display:block;}
+.admin-row .meta{flex:1; min-width:0;}
+.admin-row .meta .name{font-size:14px; -webkit-line-clamp:1;}
+.admin-row .meta .sub{font-size:12px; color:var(--hint); margin-top:2px;}
+.variant-row{
+  display:flex; align-items:center; gap:10px; background:var(--bg);
+  border-radius:var(--radius-md); padding:10px 12px;
+}
+.variant-row .meta{flex:1; min-width:0;}
+.variant-row .meta .name{font-size:13px; display:block; -webkit-line-clamp:unset; white-space:normal; overflow:visible;}
+.variant-row .meta .sub{font-size:12px; color:var(--hint); margin-top:2px;}
+.stock-toggle{
+  border:none; border-radius:10px; padding:5px 9px; font-size:11px; font-weight:700; cursor:pointer;
+}
+.stock-toggle.on{background:var(--new); color:#fff;}
+.stock-toggle.off{background:var(--hint); color:#fff;}
+.icon-btn{
+  width:28px;height:28px;border-radius:50%;border:none;background:var(--card);
+  cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.form-row{margin-bottom:16px;}
+.form-row label{font-size:13px; color:var(--hint); display:block; margin-bottom:7px;}
+.form-row input, .form-row select{
+  width:100%; box-sizing:border-box; padding:14px 14px; border-radius:12px;
+  border:1px solid var(--separator); background:var(--bg); font-size:16px;
+}
+.form-actions{display:flex; gap:10px; margin-top:14px;}
+.form-actions .checkout-btn{flex:1;}
+.form-actions .secondary{background:var(--bg); color:var(--text);}
+.toast{
+  position:fixed; left:50%; bottom:100px; transform:translate(-50%,20px);
+  background:var(--card); color:var(--text); padding:10px 18px; border-radius:12px;
+  box-shadow:var(--shadow); font-size:13px; z-index:50; opacity:0; transition:all .25s;
+  pointer-events:none; max-width:80%; text-align:center;
+}
+.toast.show{opacity:1; transform:translate(-50%,0);}
+/* --- фото вкуса: крупное, целиком, без обрезки упаковки --- */
+.v-thumb{
+  width:100%; height:300px; min-height:300px; flex-shrink:0;
+  border-radius:var(--radius-lg); background:var(--thumb);
+  display:flex; align-items:center; justify-content:center;
+  font-size:80px; overflow:hidden; margin-bottom:14px; position:relative; cursor:zoom-in;
+}
+.v-thumb img{ width:100%; height:100%; object-fit:contain; display:block; }
+.v-thumb::after{
+  content:'⤢'; position:absolute; right:10px; bottom:10px;
+  background:rgba(0,0,0,.55); color:#fff; font-size:15px; line-height:1;
+  padding:7px 9px; border-radius:9px; pointer-events:none;
+}
+
+/* --- сетка вкусов внутри линейки --- */
+.flavor-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding-bottom:6px; grid-auto-rows:1fr; }
+.flavor-card{
+  background:var(--card-bg,var(--sheet-bg)); border:1px solid var(--separator);
+  border-radius:var(--radius-lg); overflow:hidden; cursor:pointer;
+  display:flex; flex-direction:column; transition:transform .12s ease;
+}
+.flavor-card:active{ transform:scale(.975); }
+.flavor-card.out{ opacity:.45; }
+.flavor-card .fthumb{
+  width:100%; aspect-ratio:1; background:var(--thumb);
+  display:flex; align-items:center; justify-content:center; font-size:40px; overflow:hidden; position:relative;
+}
+.flavor-card .fthumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.flavor-card .fbody{ padding:8px 10px 9px; display:flex; flex-direction:column; gap:2px; flex:1; }
+.flavor-card .fname{ font-size:13px; font-weight:600; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; height:2.5em; }
+.flavor-card .frow{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:auto; padding-top:2px; }
+.flavor-card .fprice{ font-size:13px; font-weight:700; white-space:nowrap; flex:0 0 auto; }
+
+/* Слот под «+»/счётчик фиксированной ширины: когда «+» превращается
+   в «− 1 +», цена рядом не должна дёргаться. */
+/* Ширина ровно под счётчик «− 1 +» — больше нельзя, иначе круглая
+   кнопка вылезает за паддинг карточки и обрезается overflow:hidden. */
+.ctl-slot{
+  flex:0 0 66px; height:28px; display:flex; align-items:center; justify-content:flex-end;
+}
+.ctl-slot .qty{ transition:none; }
+.flavor-card .frow .ctl-slot{ flex:0 0 66px; }
+.flavor-card .frow{ gap:6px; min-height:32px; }
+
+/* --- строка наличия --- */
+.stock-line{ font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; }
+.stock-line.ok{ color:#34c759; }
+.stock-line.low{ color:#ff9500; }
+.stock-line.none{ color:#ff3b30; }
+.stock-pill{
+  font-size:11px; font-weight:700; padding:2px 7px; border-radius:8px;
+  background:var(--bg); color:var(--hint);
+}
+
+/* --- просмотр фото во весь экран --- */
+#lightbox{
+  position:fixed; inset:0; z-index:80; background:#000;
+  display:none; align-items:center; justify-content:center; overflow:auto;
+}
+#lightbox.show{ display:flex; }
+#lightbox img{ max-width:100%; max-height:100%; object-fit:contain; transition:transform .2s ease; }
+#lightbox img.zoomed{ transform:scale(2.2); cursor:zoom-out; }
+#lightboxClose{
+  position:fixed; top:max(14px,env(safe-area-inset-top)); right:14px; z-index:81;
+  width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+  background:rgba(255,255,255,.15); color:#fff; font-size:17px;
+}
+#lightboxHint{
+  position:fixed; bottom:max(18px,env(safe-area-inset-bottom)); left:0; right:0;
+  text-align:center; color:rgba(255,255,255,.65); font-size:12px; pointer-events:none;
+}
+
+/* --- фуллскрин: шапка не должна лезть под часы и кнопки Telegram --- */
+:root{ --safe-top:0px; }
+.app{ padding-top:var(--safe-top); }
+/* Места под кнопки Telegram справа не резервируем: вертикально шапку уже
+   опускает --safe-top, а отступ в 96px только утаскивал бонусы и смену
+   темы от правого края к середине */
+/* Свои кнопки закрытия прячем, когда работает родная кнопка «Назад» Telegram */
+.tg-native-back [data-native-hide]{ display:none !important; }
+
+/* --- админка: отдельная полноэкранная страница, а не выезжающая шторка --- */
+.admin-page{
+  position:fixed; inset:0; z-index:70; background:var(--bg);
+  display:none; flex-direction:column;
+  padding:0 14px max(14px,env(safe-area-inset-bottom));
+  overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+}
+.admin-page.show{ display:flex; }
+.admin-page-head{
+  position:sticky; top:0; z-index:3; background:var(--bg);
+  padding:calc(var(--safe-top) + 8px) 0 8px;
+  display:flex; align-items:center; gap:8px;
+  font-size:14px; font-weight:600; border-bottom:1px solid var(--separator);
+}
+.admin-page-head span{ flex:1; min-width:0; }
+.admin-close{
+  width:36px; height:36px; border-radius:50%; border:1px solid var(--separator);
+  background:var(--sheet-bg); color:var(--text); font-size:18px; cursor:pointer;
+  font-family:inherit; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.admin-page-head .admin-add-btn.round{
+  flex:0 0 auto; width:38px; height:38px; padding:0; border-radius:50%;
+  font-size:24px; line-height:1; display:flex; align-items:center; justify-content:center;
+}
+/* Клавиатура занимает низ экрана — оставляем место, чтобы поля не прятались под ней */
+.admin-page .form-row:last-of-type{ margin-bottom:0; }
+#adminFormView, #adminSupplyView{ padding-bottom:40vh; }
+
+.admin-search input{
+  width:100%; box-sizing:border-box; border-radius:12px; border:1px solid var(--separator);
+  background:var(--bg); padding:10px 12px; font-family:inherit; font-size:14px; color:var(--text);
+  margin-bottom:8px;
+}
+.admin-filters{ display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; }
+.admin-filters::-webkit-scrollbar{ display:none; }
+.admin-filters .chip{ flex-shrink:0; }
+/* Сводка одной строкой мелким шрифтом — место дороже */
+.admin-summary{
+  display:flex; gap:7px; flex-wrap:nowrap; overflow-x:auto; white-space:nowrap;
+  font-size:11px; color:var(--hint);
+  padding:2px 0 12px;
+}
+.admin-summary::-webkit-scrollbar{ display:none; }
+.admin-summary span{
+  flex-shrink:0; background:var(--card); border-radius:20px;
+  padding:6px 11px; box-shadow:var(--shadow);
+}
+.admin-summary b{ color:var(--text); font-size:12px; }
+/* Раздел был серой строчкой над такими же серыми строками — граница между
+   линейками не читалась. Теперь это шапка: цветная метка слева, обычный
+   размер текста и счётчик товаров справа */
+/* отступ между линейками задаёт gap у .admin-list — своего margin не нужно */
+.admin-group-title{
+  display:flex; align-items:center; gap:9px;
+  font-size:14px; font-weight:700; color:var(--text);
+  padding:9px 12px; margin-bottom:7px;
+  border-radius:12px; background:var(--thumb);
+  border-left:3px solid var(--accent);
+}
+.admin-group-title .count{
+  margin-left:auto; flex-shrink:0;
+  font-size:11px; font-weight:700; color:var(--hint);
+  background:var(--card); border-radius:20px; padding:3px 9px;
+}
+.admin-group-rows{ display:flex; flex-direction:column; gap:7px; }
+.admin-row .stock-box{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+.admin-row .stock-box input{
+  width:46px; text-align:center; border-radius:9px; border:1px solid var(--separator);
+  background:var(--bg); color:var(--text); font-family:inherit; font-size:13px;
+  font-weight:700; padding:5px 2px;
+}
+.admin-row .stock-box button{
+  width:28px; height:28px; border-radius:8px; border:1px solid var(--separator);
+  background:var(--bg); color:var(--text); font-size:16px; cursor:pointer; font-family:inherit;
+  display:flex; align-items:center; justify-content:center; padding:0;
+}
+/* Правка подсвечивается рамкой, а не заливкой вместо фона: строка теперь
+   карточка, и подменять ей фон значит терять её из виду.
+   Зелёный — товар есть, красный — выставили ноль: так по экрану сразу
+   видно, сколько позиций кончилось */
+.admin-row.changed{ background:rgba(52,199,89,.12); box-shadow:inset 0 0 0 1.5px var(--new); }
+.admin-row.changed-out{ background:rgba(255,59,48,.12); box-shadow:inset 0 0 0 1.5px #ff3b30; }
+.admin-row .sub .out{ color:#ff3b30; font-weight:700; }
+/* Кнопка сохранения живёт в шапке и появляется только при правках */
+.head-save{
+  flex:0 0 auto; border:none; cursor:pointer; font-family:inherit;
+  background:#34c759; color:#fff; border-radius:12px;
+  padding:9px 13px; font-size:13px; font-weight:700;
+}
+/* ширина счётчика фиксирована, иначе «1» → «10» дёргает шапку */
+.head-save b{ opacity:.85; display:inline-block; min-width:1.2em; text-align:center; }
+/* --- ввод количества у верхнего края --- */
+.qed-backdrop{
+  position:fixed; inset:0; background:var(--overlay); z-index:84;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.qed-backdrop.show{ opacity:1; pointer-events:auto; }
+.qed{
+  position:fixed; left:0; right:0; top:0; z-index:85;
+  background:var(--sheet-bg); border-radius:0 0 18px 18px;
+  padding:calc(var(--safe-top) + 14px) 16px 16px;
+  transform:translateY(-110%); transition:transform .22s ease;
+  box-shadow:0 6px 24px rgba(0,0,0,.25);
+}
+.qed.show{ transform:none; }
+.qed-name{ font-size:14px; font-weight:700; margin-bottom:12px; }
+.qed-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.qed-row button{
+  width:52px; height:52px; border-radius:14px; border:1px solid var(--separator);
+  background:var(--card); color:var(--text); font-size:24px; cursor:pointer; font-family:inherit;
+  flex-shrink:0;
+}
+.qed-row input{
+  flex:1; min-width:0; height:52px; text-align:center;
+  font-size:24px; font-weight:700; font-family:inherit;
+  border-radius:14px; border:1px solid var(--separator);
+  background:var(--card); color:var(--text); -webkit-appearance:none; appearance:none;
+}
+.qed-quick{ display:flex; gap:8px; margin-bottom:14px; }
+.qed-quick button{
+  flex:1; height:40px; border-radius:11px; border:1px solid var(--separator);
+  background:var(--card); color:var(--text); font-size:14px; font-weight:600;
+  cursor:pointer; font-family:inherit;
+}
+
+/* --- пошаговое добавление товара --- */
+.wiz-steps{ display:flex; gap:5px; margin:12px 0 14px; }
+.wiz-steps i{ flex:1; height:3px; border-radius:2px; background:var(--separator); }
+.wiz-steps i.done{ background:var(--accent); }
+.wiz-q{ font-size:19px; font-weight:700; margin-bottom:16px; }
+.hint-line{ font-size:12px; color:var(--hint); margin-top:6px; line-height:1.4; }
+.type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.type-grid button{
+  border:1px solid var(--separator); background:var(--card); color:var(--text);
+  border-radius:14px; padding:20px 10px; font-family:inherit; font-size:15px;
+  font-weight:600; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; gap:8px; text-align:center; line-height:1.25;
+}
+.type-grid button .em{ font-size:26px; }
+.type-grid button.active{ border-color:var(--accent); background:rgba(51,144,236,.12); }
+/* Сегменты вместо select: родной select на телефоне рисуется чёрным */
+.seg{ display:flex; gap:6px; }
+.seg button{
+  flex:1; border:1px solid var(--separator); background:var(--card); color:var(--text);
+  border-radius:12px; padding:14px 8px; font-family:inherit; font-size:15px;
+  font-weight:600; cursor:pointer;
+}
+.seg button.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+.wiz-nav{ display:flex; gap:10px; margin-top:20px; }
+.wiz-nav .checkout-btn{ flex:1; }
+.photo-drop{ display:flex; flex-direction:column; gap:10px; }
+.photo-preview{
+  width:100%; height:200px; border-radius:14px; background:var(--thumb);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  color:var(--hint); font-size:13px;
+}
+.photo-preview img{ width:100%; height:100%; object-fit:contain; }
+/* Поля формы: одинаково светлые в обеих темах */
+.form-row input, .form-row select, .form-row textarea{
+  -webkit-appearance:none; appearance:none;
+  background:var(--card); color:var(--text); border:1px solid var(--separator);
+}
+
+/* Зона рассылки отделена и лежит в самом низу — случайно не нажать */
+.supply-zone{
+  margin-top:32px; padding-top:18px; border-top:2px dashed var(--separator);
+}
+.supply-title{ font-size:15px; font-weight:700; margin-bottom:2px; }
+.supply-sub{ font-size:12px; color:var(--hint); margin-bottom:12px; }
+/* --- выдвижная панель категорий --- */
+.drawer{
+  position:fixed; top:0; bottom:0; left:0; z-index:76;
+  width:236px; max-width:78vw; background:var(--sheet-bg);
+  transform:translateX(-100%); transition:transform .26s ease;
+  padding:calc(var(--safe-top) + 16px) 12px max(16px,env(safe-area-inset-bottom));
+  overflow-y:auto; overscroll-behavior:contain;
+  box-shadow:4px 0 24px rgba(0,0,0,.18);
+  display:flex; flex-direction:column; gap:6px;
+}
+.drawer.show{ transform:none; }
+.drawer-title{ font-size:12px; font-weight:700; color:var(--hint); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.drawer nav{ display:flex; flex-direction:column; gap:6px; }
+.drawer nav button{
+  width:100%; border:none; cursor:pointer; font-family:inherit;
+  background:var(--card); color:var(--text); border-radius:12px;
+  padding:13px 14px; font-size:14px; font-weight:600; text-align:left;
+}
+.drawer nav button.active{ background:var(--accent); color:#fff; }
+.drawer nav button{ display:flex; align-items:center; gap:8px; }
+.drawer-backdrop{
+  position:fixed; inset:0; background:var(--overlay); z-index:75;
+  opacity:0; pointer-events:none; transition:opacity .26s;
+}
+.drawer-backdrop.show{ opacity:1; pointer-events:auto; }
+/* Островок у левого края: видимая часть — линия 3x40%, всё остальное
+   прозрачное. Вся кнопка 10px в ширину, чтобы попадать пальцем, и это
+   меньше отступа сетки (16px) — на карточки не заезжает. */
+.drawer-tab{
+  position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:62;
+  width:10px; height:40vh; border:none; cursor:pointer; padding:0;
+  background:transparent; box-shadow:none; font-size:0; color:transparent;
+  display:flex; align-items:center;
+}
+.drawer-tab::before{
+  content:""; display:block; width:3px; height:100%;
+  border-radius:0 3px 3px 0; background:var(--hint); opacity:.35;
+  transition:opacity .15s;
+}
+.drawer-tab:active::before{ opacity:.85; }
+.drawer-tab.hidden{ display:none; }
+/* Круглый «бутерброд» — основной способ открыть панель */
+.burger{
+  width:40px; height:40px; border-radius:50%; flex-shrink:0;
+  border:1px solid var(--separator); background:var(--card); cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  padding:0; font-family:inherit;
+}
+.burger i{ display:block; width:17px; height:2px; border-radius:2px; background:var(--text); }
+.burger:active{ transform:scale(.92); }
+.admin-page-head .burger{ width:38px; height:38px; }
+@media (min-width:560px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+
+#cartBar{display:flex !important;}
+#cartBar.cart-hidden{display:none !important;}
 </style>
 </head>
-<body></body>
+<body>
+<div class="app" id="app">
+  <header>
+    <button class="burger" id="burgerBtn" type="button" aria-label="Категории"><i></i><i></i><i></i></button>
+    <div class="brand">
+      <h1>Chipatap</h1>
+      <p id="itemCount"></p>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="admin-btn" id="referralBtn" aria-label="Мои баллы" style="display:inline-flex; width:auto; height:auto; padding:8px 14px; border-radius:20px; font-size:13px; font-weight:600; gap:6px;">🎁 <span id="balanceLabel">0</span></button>
+      <button class="theme-btn" id="themeBtn" aria-label="Сменить тему"></button>
+    </div>
+  </header>
+  <div id="adminBtnWrap" style="display:none; padding:0 16px 8px; text-align:right;">
+    <button class="admin-btn" id="adminBtn" aria-label="Админка" style="display:inline-flex; width:auto; height:auto; padding:8px 14px; border-radius:20px; font-size:13px; font-weight:600; gap:6px;">🔧 Админка</button>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Поиск товаров" aria-label="Поиск товаров">
+    </div>
+  </div>
+
+  <button id="referralBanner" style="margin:0 16px 12px; width:calc(100% - 32px); background:linear-gradient(135deg,#3390ec,#5aa9f0); color:#fff; border:none; border-radius:14px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; font-family:inherit; cursor:pointer; box-shadow:0 4px 14px rgba(51,144,236,0.3);">
+    <span style="display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; text-align:left;">
+      <span style="font-size:22px;">🎁</span>
+      <span>Пригласи друга<br><span style="font-size:12px; font-weight:400; opacity:0.9;">+10 бонусов за каждого</span></span>
+    </span>
+    <span style="font-size:22px;">→</span>
+  </button>
+
+  <main class="grid" id="grid"></main>
+</div>
+
+<!-- Категории живут в выдвижной панели слева: вытягивается кнопкой или
+     свайпом от левого края, места на витрине не занимает -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer" aria-label="Категории">
+  <div class="drawer-title" id="drawerTitle">Категории</div>
+  <nav id="chips"></nav>
+
+  <!-- Панель была наполовину пустой: под категориями оставалось место,
+       которое ничего не показывало. Здесь то, за чем всё равно лезешь. -->
+  <div id="drawerExtras">
+    <div class="drawer-title" style="margin-top:18px">Показать</div>
+    <nav id="quickFilters"></nav>
+    <nav style="margin-top:18px">
+      <button type="button" id="drawerCartBtn">🛒 Корзина</button>
+      <button type="button" id="drawerBonusBtn">🎁 Бонусы</button>
+    </nav>
+  </div>
+  <!-- Рассылка живёт здесь: со страницы склада убрана, чтобы не съедала экран -->
+  <div class="supply-zone" id="drawerSupply" style="display:none">
+    <div class="supply-sub" id="supplyReady"></div>
+    <button class="checkout-btn" id="adminSupplyBtn" style="background:#34c759;">📢 Объявить поставку</button>
+  </div>
+</aside>
+<button class="drawer-tab" id="drawerTab" type="button" aria-label="Категории"></button>
+
+<button id="cartBar" aria-label="Корзина" class="cart-hidden" style="position:fixed; bottom:20px; right:16px; height:44px; padding:0 16px; border-radius:22px; background:var(--accent); color:#fff; border:none; align-items:center; justify-content:center; gap:7px; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 4px 16px rgba(51,144,236,0.45); z-index:60;">
+  🛒 <span id="cartBarTotal">0 ₽</span>
+</button>
+
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Корзина">
+  <div class="handle-zone"><div class="handle"></div></div>
+
+  <div id="cartView">
+    <h2>Корзина</h2>
+    <div class="cart-items" id="cartItems"></div>
+    <div class="sheet-footer">
+      <div class="total-row"><span>Итого</span><b id="sheetTotal">0 ₽</b></div>
+      <button class="checkout-btn" id="checkoutBtn">Оформить заказ</button>
+    </div>
+  </div>
+
+  <!-- Оформление заказа. Выбора оплаты и доставки здесь нет и быть не должно:
+       расчёт только наличными при встрече, место присылает бот после того,
+       как админ подтвердит заказ. -->
+  <div id="orderView" style="display:none">
+    <button class="back-btn" data-back="cart">← Назад в корзину</button>
+    <h2>Оформление заказа</h2>
+
+    <div id="bonusRow" style="display:none; align-items:center; justify-content:space-between; background:var(--bg); border-radius:12px; padding:12px 14px; margin-bottom:14px;">
+      <label style="display:flex; align-items:center; gap:10px; font-size:14px; cursor:pointer;">
+        <input type="checkbox" id="useBonusCheck" style="width:18px; height:18px;">
+        Списать бонусы (доступно <span id="bonusAvailable">0</span> ₽)
+      </label>
+    </div>
+
+    <!-- Адрес показываем ДО поля времени: назначать время, не зная, куда
+         ехать, нельзя — человек назовёт час, за который просто не доедет. -->
+    <p class="order-place">📍 Место встречи: <b id="meetPlace">Маршала Жукова 20</b><button type="button" id="copyPlace" class="copy-inline" aria-label="Скопировать адрес">📋</button></p>
+
+    <label class="order-label">Время встречи <span style="color:#ff3b30">*</span></label>
+    <input id="orderTime" class="order-field" type="text" placeholder="сегодня в 18:00">
+
+    <label class="order-label">Комментарий</label>
+    <textarea id="orderContact" class="order-field" rows="2"></textarea>
+
+    <div id="orderProblem" style="display:none; background:rgba(255,59,48,0.12); color:#ff3b30; border-radius:12px; padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:12px;"></div>
+
+    <div class="total-row" style="margin-bottom:12px"><span>Итого</span><b id="orderTotal">0 ₽</b></div>
+    <button class="checkout-btn" id="orderSendBtn">Отправить заказ</button>
+  </div>
+</div>
+
+<!-- Экран линейки: сетка вкусов, у каждого своё фото и свой отзыв -->
+<div class="sheet-backdrop" id="productBackdrop"></div>
+<div class="sheet" id="productSheet" role="dialog" aria-label="Линейка" style="max-height:92vh">
+  <div class="handle-zone"><div class="handle"></div></div>
+  <button class="back-btn" id="productClose" data-native-hide style="padding-bottom:10px">✕ Закрыть</button>
+  <h2 id="lineName" style="margin-bottom:4px"></h2>
+  <div id="lineTag" class="tag" style="font-size:13px; margin-bottom:4px"></div>
+  <div id="lineCount" style="font-size:13px; color:var(--hint); margin-bottom:14px"></div>
+  <div class="flavor-grid" id="flavorGrid"></div>
+</div>
+
+<!-- Экран одного вкуса: крупное фото, наличие, отзывы именно на этот вкус -->
+<div class="sheet-backdrop" id="variantBackdrop"></div>
+<div class="sheet" id="variantSheet" role="dialog" aria-label="Вкус" style="max-height:94vh">
+  <div class="handle-zone"><div class="handle"></div></div>
+  <button class="back-btn" id="variantBack" data-native-hide style="padding-bottom:10px">‹ Назад</button>
+  <div id="vThumb" class="v-thumb"></div>
+  <div id="vBadge"></div>
+  <h2 id="vName" style="margin-bottom:6px"></h2>
+  <div id="vTag" class="tag" style="font-size:13px; margin-bottom:8px"></div>
+  <div id="vStock" class="stock-line"></div>
+  <p id="vDesc" style="font-size:14px; color:var(--hint); line-height:1.5; margin:10px 0 16px"></p>
+  <div class="total-row" style="margin-bottom:14px"><span>Цена:</span><b id="vPrice" style="font-size:20px"></b></div>
+  <div id="vAction"></div>
+
+  <div style="margin-top:20px; border-top:1px solid var(--separator); padding-top:16px;">
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+      <div id="reviewsSquare" style="flex:1; aspect-ratio:1; background:var(--bg); border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; padding:8px;"></div>
+      <div id="suggestBtn" style="flex:1; aspect-ratio:1; background:var(--bg); border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; padding:8px; gap:6px;">
+        <span style="font-size:28px;">💡</span>
+        <span style="font-size:13px; font-weight:600;">Предложить идею</span>
+      </div>
+    </div>
+
+    <div id="suggestBox" style="display:none; margin-bottom:14px;">
+      <textarea id="suggestText" placeholder="Какой вкус/товар добавить, что улучшить..." style="width:100%; min-height:60px; border-radius:12px; border:1px solid var(--separator); background:var(--bg); padding:10px 12px; font-family:inherit; font-size:14px; color:var(--text); resize:vertical;"></textarea>
+      <button class="checkout-btn" id="submitSuggestBtn" style="margin-top:8px;">Отправить</button>
+    </div>
+
+    <a id="communityLink" href="#" target="_blank" style="text-decoration:none; color:inherit;">
+      <div style="cursor:pointer; background:var(--bg); border-radius:14px; padding:18px 16px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; font-size:15px; font-weight:600;">
+        <span>💬 Чат барахолки — обсудить, обменяться</span>
+        <span style="color:var(--hint); font-size:20px;">›</span>
+      </div>
+    </a>
+
+    <h3 id="reviewsTitle" style="font-size:15px; margin-bottom:10px;">Отзывы</h3>
+    <div id="reviewsList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;"></div>
+    <div id="starPicker" style="display:flex; gap:4px; margin-bottom:8px; font-size:26px;"></div>
+    <textarea id="reviewText" placeholder="Напиши, как тебе именно этот вкус..." style="width:100%; min-height:64px; border-radius:12px; border:1px solid var(--separator); background:var(--bg); padding:10px 12px; font-family:inherit; font-size:14px; color:var(--text); resize:vertical;"></textarea>
+    <button class="checkout-btn" id="submitReviewBtn" style="margin-top:10px;">Отправить отзыв</button>
+  </div>
+</div>
+
+<!-- Просмотр фото во весь экран: рассмотреть коробку/упаковку -->
+<!-- Ввод количества закреплён у ВЕРХНЕГО края экрана. Клавиатура всегда
+     снизу, поэтому поле физически не может оказаться под ней. -->
+<div class="qed-backdrop" id="qedBackdrop"></div>
+<div class="qed" id="qed" role="dialog" aria-label="Количество">
+  <div class="qed-name" id="qedName"></div>
+  <div class="qed-row">
+    <button type="button" data-qd="-1">−</button>
+    <input id="qedInput" type="number" inputmode="numeric" min="0" enterkeyhint="done">
+    <button type="button" data-qd="1">+</button>
+  </div>
+  <div class="qed-quick">
+    <button type="button" data-qs="0">0</button>
+    <button type="button" data-qd="5">+5</button>
+    <button type="button" data-qd="10">+10</button>
+    <button type="button" data-qd="20">+20</button>
+  </div>
+  <button class="checkout-btn" id="qedDone">Готово</button>
+</div>
+
+<div id="lightbox" role="dialog" aria-label="Фото товара">
+  <button id="lightboxClose" aria-label="Закрыть">✕</button>
+  <img id="lightboxImg" alt="">
+  <div id="lightboxHint">Нажми на фото, чтобы приблизить</div>
+</div>
+
+<div class="sheet-backdrop" id="referralBackdrop"></div>
+<div class="sheet" id="referralSheet" role="dialog" aria-label="Реферальная программа">
+  <div class="handle-zone"><div class="handle"></div></div>
+  <button class="back-btn" id="referralClose" data-native-hide>✕ Закрыть</button>
+  <h2>Приглашай друзей</h2>
+  <p style="font-size:15px; font-weight:600; line-height:1.5; margin-bottom:16px;">За каждого друга, который перейдёт по твоей ссылке и напишет боту — <span style="color:var(--accent);">+10 бонусов</span>. 1 бонус = 1 ₽, можно списать при оплате.</p>
+  <!-- Главное действие — сразу выбрать, кому отправить: Telegram открывает
+       свой список контактов и шлёт ссылку одним касанием. Копирование
+       осталось запасным путём. -->
+  <button class="checkout-btn" id="shareReferral" type="button" style="margin-bottom:10px;">Поделиться ссылкой</button>
+  <div class="card-requisites">
+    <div class="card-row"><span id="referralLink" style="font-size:13px; word-break:break-all;"></span><button id="copyReferral" aria-label="Скопировать" type="button">📋</button></div>
+  </div>
+  <div class="total-row"><span>Твой баланс</span><b id="referralBalance">0 ₽</b></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<div class="sheet-backdrop" id="adminBackdrop" style="display:none"></div>
+<div class="admin-page" id="adminSheet" role="dialog" aria-label="Админка">
+  <div class="admin-page-head">
+    <button class="admin-close" id="adminCloseBtn" type="button" data-native-hide aria-label="Назад">‹</button>
+    <button class="burger" id="adminDrawerBtn" type="button" aria-label="Фильтр"><i></i><i></i><i></i></button>
+    <span id="adminHeadTitle">Склад</span>
+    <!-- Сохранение появляется само, когда есть что сохранять -->
+    <button class="head-save" id="adminBatchSaveBtn" style="visibility:hidden">Сохранить <b id="adminPendingCount">0</b></button>
+    <button class="admin-add-btn round" id="adminAddBtn" aria-label="Добавить товар">+</button>
+  </div>
+
+  <div id="adminListView">
+    <div id="adminSummary" class="admin-summary"></div>
+
+    <div class="admin-list" id="adminList"></div>
+
+    <!-- Место, чтобы любую строку можно было поднять над клавиатурой -->
+    <div id="adminSpacer" style="height:0"></div>
+
+
+  </div>
+
+  <div id="adminSupplyView" style="display:none">
+    <button class="back-btn" id="adminSupplyBack" data-native-hide style="padding-bottom:14px">← Назад к складу</button>
+    <h2>Объявить поставку</h2>
+    <p style="font-size:13px; color:var(--hint); line-height:1.5; margin-bottom:12px;">
+      Сообщение уйдёт <b id="supplyAudience">всем</b> в личку от бота, с кнопкой «Открыть магазин».
+      Текст можно править — ниже уже подставлено то, что сейчас в наличии.
+    </p>
+    <textarea id="supplyText" style="width:100%; min-height:150px; border-radius:12px; border:1px solid var(--separator); background:var(--bg); padding:10px 12px; font-family:inherit; font-size:14px; color:var(--text); resize:vertical;"></textarea>
+    <div style="display:flex; align-items:center; gap:8px; margin:12px 0;">
+      <button class="back-btn" id="supplyRefillBtn" type="button" style="padding:0;">↻ Подставить заново</button>
+    </div>
+    <button class="checkout-btn" id="supplySendBtn">Разослать</button>
+  </div>
+
+  <div id="adminFormView" style="display:none">
+    <!-- Шапка страницы уже даёт «назад» и заголовок, здесь их не дублируем -->
+    <div class="wiz-steps" id="wizSteps"></div>
+
+    <!-- Шаг 1: что заводим. От выбора зависят следующие поля -->
+    <div class="wiz-step" data-step="type">
+      <div class="wiz-q">Что добавляем?</div>
+      <div class="type-grid" id="typeGrid"></div>
+    </div>
+
+    <!-- Шаг 2: к чему относится -->
+    <div class="wiz-step" data-step="kind" style="display:none">
+      <div class="wiz-q" id="kindQuestion">Какой вид?</div>
+      <div class="type-grid" id="kindGrid"></div>
+      <div class="form-row" style="margin-top:14px">
+        <label id="kindOwnLabel">Или впиши своё</label>
+        <input id="f_subcategory" type="text" enterkeyhint="next" placeholder="например Анархия">
+      </div>
+    </div>
+
+    <!-- Шаг 3: название и линейка -->
+    <div class="wiz-step" data-step="name" style="display:none">
+      <div class="wiz-q" id="nameQuestion">Название</div>
+      <div class="form-row">
+        <label id="nameLabel">Название</label>
+        <input id="f_name" type="text" enterkeyhint="next" placeholder="ЗЕЛЁНОЕ ЯБЛОКО">
+      </div>
+      <div class="form-row">
+        <label>Линейка — объединяет вкусы в одну карточку</label>
+        <input id="f_group" type="text" enterkeyhint="next" list="groupList" placeholder="Анархия 50MG">
+        <datalist id="groupList"></datalist>
+        <div class="hint-line">Одинаковая линейка = один товар на витрине с выбором вкуса</div>
+      </div>
+      <div class="form-row">
+        <label>Короткое описание под названием</label>
+        <input id="f_desc" type="text" enterkeyhint="next" placeholder="необязательно">
+      </div>
+    </div>
+
+    <!-- Шаг 4: цена и склад -->
+    <div class="wiz-step" data-step="price" style="display:none">
+      <div class="wiz-q">Цена и остаток</div>
+      <div class="form-row">
+        <label>Цена, ₽</label>
+        <input id="f_price" type="number" inputmode="numeric" enterkeyhint="next" placeholder="400">
+      </div>
+      <div class="form-row">
+        <label>Сколько штук привезли</label>
+        <input id="f_stock" type="number" inputmode="numeric" min="0" enterkeyhint="done" placeholder="12">
+        <div class="hint-line">Пусто — учёт не ведём, наличие переключается вручную</div>
+      </div>
+      <div class="form-row">
+        <label>В наличии</label>
+        <div class="seg" id="segStock">
+          <button type="button" data-val="TRUE" class="active">Да</button>
+          <button type="button" data-val="FALSE">Нет</button>
+        </div>
+        <input id="f_instock" type="hidden" value="TRUE">
+      </div>
+      <div class="form-row">
+        <label>Метка на карточке</label>
+        <div class="seg" id="segBadge">
+          <button type="button" data-val="" class="active">Без метки</button>
+          <button type="button" data-val="NEW">NEW</button>
+          <button type="button" data-val="ХИТ">ХИТ</button>
+        </div>
+        <input id="f_badge" type="hidden" value="">
+      </div>
+    </div>
+
+    <!-- Шаг 5: фото. Грузит его бот, сюда попадает готовая ссылка. -->
+    <div class="wiz-step" data-step="photo" style="display:none">
+      <div class="wiz-q">Фото товара</div>
+      <div class="photo-drop" id="photoDrop">
+        <div id="photoPreview" class="photo-preview"></div>
+        <div class="hint-line" id="photoStatus">Можно пропустить и добавить позже</div>
+      </div>
+      <div class="hint-line" style="margin-top:12px">
+        Фото загружает бот: в чате «📷 Фото товара» → выбери карточку → пришли снимок.
+        Бот ответит ссылкой — её и вставь сюда.
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <label>Ссылка на фото</label>
+        <input id="f_image" type="text" enterkeyhint="done" placeholder="https://...">
+      </div>
+
+      <!-- Обложка линейки. На главной у линейки одна карточка на все вкусы, и
+           показывает она фото первого вкуса. Когда заводим второй и дальше —
+           спрашиваем, что поставить на главную. Для первого не спрашиваем:
+           его фото и так становится обложкой. -->
+      <div id="coverBlock" style="display:none; margin-top:18px; border-top:1px solid var(--separator); padding-top:14px;">
+        <div class="wiz-q" style="font-size:15px; margin-bottom:6px;">Фото линейки на главной</div>
+        <div class="hint-line" style="margin-bottom:10px;">
+          В линейке <b id="coverGroupName"></b> уже есть товары. На витрине они собраны в одну карточку — выбери, каким фото она будет показана.
+        </div>
+        <div class="photo-drop">
+          <div id="coverPreview" class="photo-preview"></div>
+          <div class="hint-line" id="coverStatus">Пусто — на главной останется фото первого вкуса</div>
+        </div>
+        <div class="form-row" style="margin-top:10px">
+          <label>Ссылка на обложку</label>
+          <input id="f_cover" type="text" enterkeyhint="done" placeholder="https://...">
+        </div>
+      </div>
+      <input id="f_icon" type="hidden" value="">
+    </div>
+
+    <div class="wiz-nav">
+      <button class="checkout-btn secondary" id="wizBack" type="button" data-native-hide>Назад</button>
+      <button class="checkout-btn" id="wizNext" type="button">Далее</button>
+    </div>
+    <button class="checkout-btn secondary" id="adminDeleteBtn" style="display:none; margin-top:10px; color:#ff3b30;">Удалить товар</button>
+    <button class="checkout-btn" id="adminSaveBtn" style="display:none; margin-top:10px;">Сохранить</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Telegram init — как можно раньше
+  var tg;
+  try{
+    tg = window.Telegram && window.Telegram.WebApp;
+    if(tg){
+      tg.ready();
+      tg.expand();
+      try{ tg.disableVerticalSwipes && tg.disableVerticalSwipes(); }catch(e){}
+      // Фуллскрин (Bot API 8.0+). На старых клиентах метода нет — там
+      // остаётся обычный expand(), приложение просто не разворачивается на весь экран.
+      try{ tg.requestFullscreen && tg.requestFullscreen(); }catch(e){}
+      // Свайп вниз больше не должен закрывать приложение случайно
+      try{ tg.enableClosingConfirmation && tg.enableClosingConfirmation(); }catch(e){}
+      // Отступ сверху = вырез устройства + шапка самого Telegram.
+      // В фуллскрине Telegram рисует поверх страницы свои кнопки (закрыть,
+      // свернуть) в правом верхнем углу — под них нужно освободить место,
+      // иначе они лягут на нашу шапку.
+      try{
+        var applyInsets=function(){
+          var dev  = (tg.safeAreaInset && tg.safeAreaInset.top) || 0;
+          var cont = (tg.contentSafeAreaInset && tg.contentSafeAreaInset.top) || 0;
+          var top  = dev + cont;
+          // В фуллскрине кнопки Telegram высокие — добавляем запас,
+          // если клиент не сообщил свой отступ.
+          if(tg.isFullscreen && cont===0) top += 48;
+          document.documentElement.style.setProperty('--safe-top', top+'px');
+          // В фуллскрине освобождаем правый верхний угол под кнопки Telegram
+          document.body.classList.toggle('tg-fullscreen', !!tg.isFullscreen);
+        };
+        applyInsets();
+        tg.onEvent && tg.onEvent('safeAreaChanged', applyInsets);
+        tg.onEvent && tg.onEvent('contentSafeAreaChanged', applyInsets);
+        tg.onEvent && tg.onEvent('fullscreenChanged', applyInsets);
+        tg.onEvent && tg.onEvent('viewportChanged', applyInsets);
+      }catch(e){}
+    }
+  }catch(e){}
+  // initData ВСЕГДА пустой для keyboard-button web apps — это норма Telegram,
+  // а не баг. Проверяем платформу вместо initData.
+  var inRealTelegram = !!(tg && tg.platform && tg.platform !== 'unknown');
+
+  // === Адреса бэкенда берутся из config.js (он вне git) ===
+  // Товары, баланс и отзывы читаются из опубликованных CSV Google-таблицы
+  // (File → Share → Publish to web), отзывы/идеи уходят в Apps Script.
+  var CFG = window.CHIPATAP_CONFIG || {};
+  var CSV_URL = CFG.CSV_URL || '';
+  var BALANCE_CSV_URL = CFG.BALANCE_CSV_URL || '';
+  var REVIEWS_CSV_URL = CFG.REVIEWS_CSV_URL || '';
+  var GAS_URL = CFG.GAS_URL || '';
+
+  var BOT_USERNAME = 'chipatapbot';
+  // uid обычно приходит параметром от бота — у приложения, открытого
+  // КЛАВИАТУРНОЙ кнопкой, initData пустой и взять id больше неоткуда.
+  // А вот у открытого синей кнопкой меню initData как раз заполнен: оттуда
+  // и берём запасной вариант, иначе бонусы и реф-ссылка молча не работают.
+  var TG_USER = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
+  var MY_UID = new URLSearchParams(location.search).get('uid')
+            || (TG_USER && TG_USER.id ? String(TG_USER.id) : '');
+  var MY_NAME = (TG_USER && TG_USER.first_name) || 'Аноним';
+  // Обратная сторона: sendData есть только у запуска с клавиатурной кнопки,
+  // то есть ровно там, где initData пуст. Из меню каталог смотреть можно,
+  // а оформить заказ — нет, и сказать об этом надо сразу, а не после попытки.
+  var CAN_ORDER = inRealTelegram && !(tg.initData && tg.initData.length);
+  var myBalance = 0;
+  var bonusToUse = 0;
+  var reviews = [];
+
+  var products = [];
+
+  function parseCSV(text){
+    var rows=[], row=[], field='', inQuotes=false;
+    for(var i=0;i<text.length;i++){
+      var c=text[i];
+      if(inQuotes){
+        if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQuotes=false; }
+        else field+=c;
+      } else {
+        if(c==='"') inQuotes=true;
+        else if(c===','){ row.push(field); field=''; }
+        else if(c==='\n' || c==='\r'){
+          if(c==='\r' && text[i+1]==='\n') i++;
+          row.push(field); field=''; rows.push(row); row=[];
+        } else field+=c;
+      }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    if(!rows.length) return [];
+    var headers=rows[0].map(function(h){ return h.trim(); });
+    return rows.slice(1).filter(function(r){ return r.length>1 && r[0]!==''; }).map(function(r){
+      var obj={};
+      headers.forEach(function(h,idx){ obj[h]=(r[idx]!==undefined?r[idx]:'').trim(); });
+      return obj;
+    });
+  }
+
+  function mapBadge(raw){
+    var b=(raw||'').trim().toUpperCase();
+    if(b==='NEW') return 'new';
+    if(b==='ХИТ' || b==='HIT') return 'hit';
+    return '';
+  }
+
+  function normalizeImageUrl(url){
+    if(!url) return '';
+    url = url.trim();
+    if(!url) return '';
+    // Telegram-браузер часто блокирует прямые запросы к imgbb, поэтому
+    // отдаём ВСЕ картинки через image-прокси images.weserv.nl (его домен не режется).
+    // Прокси сам скачает картинку по исходной ссылке, СЖИМАЕТ (w=600, q=80)
+    // и отдаёт со своего домена — это заметно ускоряет загрузку.
+    var clean = url.replace(/^https?:\/\//i, '');
+    return 'https://images.weserv.nl/?url=' + encodeURIComponent(clean) + '&w=600&q=80&output=webp';
+  }
+
+  // Прокси images.weserv.nl иногда не отдаёт картинку (сам не достучался до
+  // imgbb, таймаут). Раньше на любую осечку мы сразу ставили эмодзи, и фото
+  // «пропадало» насовсем. Теперь сначала пробуем исходную ссылку.
+  window.imgFallback=function(img){
+    var direct=img.getAttribute('data-direct');
+    if(direct && !img.getAttribute('data-tried')){
+      img.setAttribute('data-tried','1');
+      img.src = /^https?:\/\//i.test(direct) ? direct : 'https://'+direct;
+      return;
+    }
+    img.replaceWith(img.getAttribute('data-fallback') || '📦');
+  };
+  function attr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
+  function thumbContent(p){
+    if(p.image){
+      return '<img src="'+attr(p.image)+'" alt="" loading="lazy" decoding="async"'+
+        ' data-fallback="'+attr(p.icon)+'" data-direct="'+attr(p.rawImage)+'"'+
+        ' style="width:100%;height:100%;object-fit:cover;" onerror="imgFallback(this)">';
+    }
+    return p.icon;
+  }
+
+  // Количество на складе. null — не задано: тогда наличие решает старый флаг
+  // inStock, иначе товары, заведённые до появления колонки, разом «кончились».
+  function parseStock(raw){
+    var s=String(raw==null?'':raw).trim().replace(',','.');
+    if(!s) return null;
+    var n=parseFloat(s);
+    if(isNaN(n)) return null;
+    return Math.max(0, Math.floor(n));
+  }
+
+  function rawToProduct(r){
+    var stock=parseStock(r.stock);
+    var flag=String(r.inStock).trim().toUpperCase()==='TRUE';
+    return {
+      id:parseInt(r.id,10),
+      name:r.name || 'Без названия',
+      category:(r.category||'').trim(),
+      subcategory:(r.subcategory||'').trim(),
+      tag:r.desc || '',
+      price:parseFloat(r.price)||0,
+      badge:mapBadge(r.badge),
+      icon:r.icon && r.icon.trim() ? r.icon.trim() : '📦',
+      image:normalizeImageUrl(r.image||''),
+      rawImage:(r.image||'').trim(),
+      // Обложка линейки для главной. Колонки cover может не быть вовсе —
+      // тогда всё работает по-старому, от фото первого вкуса.
+      cover:(r.cover||'').trim(),
+      group:(r.group||'').trim(),
+      stock:stock,
+      added:(r.added||'').trim(),
+      restocked:(r.restocked||'').trim(),
+      inStock: stock!==null ? stock>0 : flag
+    };
+  }
+
+  // Сколько ещё можно положить в корзину сверх уже добавленного
+  function maxAddable(p){
+    if(p.stock===null) return Infinity;
+    return Math.max(0, p.stock-(cart[p.id]||0));
+  }
+  // Про наличие пишем, только когда товара НЕТ. Есть в наличии — молчим:
+  // покупателя интересует не подтверждение нормы, а исключение из неё.
+  // Количество не показываем вовсе — единиц измерения на витрине нет.
+  function stockLabel(p){
+    var available = (p.stock===null) ? p.inStock : p.stock>0;
+    return available ? '' : 'Нет в наличии';
+  }
+  // Пустую строку наличия не рисуем совсем: пустой элемент оставлял бы
+  // в карточке зазор ровно там, где раньше было «В наличии».
+  function stockLineHTML(p){
+    var label = stockLabel(p);
+    if(!label) return '';
+    return '<span class="stock-line '+stockClass(p)+'" style="font-size:11px;">'+label+'</span>';
+  }
+  // Цвет по остатку: нет — красный, последняя штука — оранжевый, дальше зелёный
+  function stockClass(p){
+    if(!p.inStock) return 'none';
+    if(p.stock!==null && p.stock<=1) return 'low';
+    return 'ok';
+  }
+
+  function groupProducts(list){
+    var groups={}, order=[];
+    list.forEach(function(p){
+      var key = p.group ? 'g:'+p.group : 's:'+p.id;
+      if(!groups[key]){ groups[key]=[]; order.push(key); }
+      groups[key].push(p);
+    });
+    return order.map(function(key){ return groups[key]; });
+  }
+
+  // Опубликованный CSV Google отдаёт с длинным кешем, и Telegram-браузер
+  // держит его ещё и у себя. Из-за этого правка из админки уезжала в таблицу,
+  // а витрина показывала старое — казалось, что сохранение не работает.
+  // Уникальный параметр в адресе + no-store заставляют скачать заново.
+  function fresh(url){
+    return url + (url.indexOf('?')===-1 ? '?' : '&') + '_=' + Date.now();
+  }
+
+  // Замок прокрутки. Шторок несколько и они умеют открываться поверх друг
+  // друга, поэтому считаем открытые по ключам: снимаем замок, только когда
+  // закрылась последняя. Иначе, закрыв верхнюю, мы разблокировали бы фон
+  // под ещё открытой нижней.
+  var scrollLocks={}, lockedAt=0;
+  function setScrollLock(key, on){
+    if(on) scrollLocks[key]=1; else delete scrollLocks[key];
+    var any=Object.keys(scrollLocks).length>0;
+    var body=document.body;
+    var locked=body.classList.contains('scroll-locked');
+    if(any && !locked){
+      lockedAt=window.pageYOffset||document.documentElement.scrollTop||0;
+      body.style.top=(-lockedAt)+'px';
+      body.classList.add('scroll-locked');
+    } else if(!any && locked){
+      body.classList.remove('scroll-locked');
+      body.style.top='';
+      window.scrollTo(0, lockedAt);
+    }
+  }
+  var NO_CACHE = {cache:'no-store'};
+
+  async function loadBalance(){
+    if(!MY_UID || !BALANCE_CSV_URL) return;
+    try{
+      var res=await fetch(fresh(BALANCE_CSV_URL), NO_CACHE);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      var csv=await res.text();
+      var rows=parseCSV(csv);
+      var mine=rows.find(function(r){ return String(r.user_id)===String(MY_UID); });
+      myBalance = mine ? (parseInt(mine.balance,10)||0) : 0;
+    }catch(e){
+      console.error('Не удалось загрузить баланс', e);
+      myBalance=0;
+    }
+    updateBalanceUI();
+  }
+
+  async function loadReviews(){
+    if(!REVIEWS_CSV_URL) return;
+    try{
+      var res=await fetch(fresh(REVIEWS_CSV_URL), NO_CACHE);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      var csv=await res.text();
+      reviews=parseCSV(csv).map(function(r){
+        return {
+          product_id:String(r.product_id||''),
+          name:r.name || 'Аноним',
+          rating:parseInt(r.rating,10)||5,
+          text:r.text||''
+        };
+      });
+    }catch(e){
+      console.error('Не удалось загрузить отзывы', e);
+      reviews=[];
+    }
+    renderGrid();
+  }
+
+  async function loadProducts(){
+    if(!CSV_URL){
+      // Чаще всего это значит, что при деплое забыли положить config.js рядом с index.html
+      console.error('CHIPATAP_CONFIG.CSV_URL пуст — проверь config.js');
+      toast('Магазин не настроен: нет config.js');
+      products=[];
+      document.getElementById('itemCount').textContent='нет соединения с таблицей';
+      buildChips();
+      renderGrid();
+      return;
+    }
+    try{
+      var res=await fetch(fresh(CSV_URL), NO_CACHE);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      var csv=await res.text();
+      var raw=parseCSV(csv);
+      products=raw.map(rawToProduct).filter(function(p){ return !isNaN(p.id); });
+    }catch(e){
+      console.error('Не удалось загрузить товары', e);
+      toast('Не удалось загрузить товары — проверь ссылку публикации таблицы');
+      products=[];
+    }
+    document.getElementById('itemCount').textContent = products.length+' товаров';
+    buildChips();
+    renderGrid();
+    renderAdminList();
+    openDeepLinked();
+  }
+
+  // Открыть товар, на который вела кнопка из канала (?p=<id>).
+  // Срабатывает один раз: если человек закрыл карточку и пошёл смотреть
+  // магазин, повторная загрузка списка не должна выкидывать его обратно.
+  var deepLinkId = new URLSearchParams(location.search).get('p') || '';
+  function openDeepLinked(){
+    if(!deepLinkId) return;
+    var id=+deepLinkId;
+    deepLinkId='';
+    var p=products.find(function(pr){ return pr.id===id; });
+    if(!p){ toast('Этой позиции больше нет в магазине'); return; }
+    // Через линейку, а не сразу карточкой: если у товара есть соседние вкусы,
+    // человек увидит их, а не только тот, что был в посте.
+    var group=groupProducts(products).find(function(g){
+      return g.some(function(v){ return v.id===id; });
+    });
+    if(group && group.length>1){
+      openProductModal(groupKeyOf(group));
+      openVariantSheet(id);
+    } else {
+      openVariantSheet(id);
+    }
+  }
+
+  var activeCat='Все';
+  var quickFilter='all';   // all | stock | new | hit — быстрый фильтр из панели
+  var query='';
+  var cart={};
+
+  // Неразрывный пробел перед ₽: иначе символ валюты срывается на вторую строку
+  function fmt(n){ return n.toLocaleString('ru-RU')+' ₽'; }
+
+  // --- theme ---
+  var root=document.documentElement;
+  var sunIcon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  var moonIcon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+
+  function getSystemTheme(){
+    try{ if(tg && tg.colorScheme) return tg.colorScheme; }catch(e){}
+    return 'light';
+  }
+  var theme=getSystemTheme();
+  function applyTheme(){
+    root.setAttribute('data-theme',theme);
+    document.getElementById('themeBtn').innerHTML = theme==='light' ? moonIcon : sunIcon;
+  }
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    theme = theme==='light' ? 'dark' : 'light';
+    applyTheme();
+    haptic('light');
+  });
+  applyTheme();
+
+  // --- chips: категории строятся из того, что реально есть в таблице ---
+  var chipsEl=document.getElementById('chips');
+  function buildChips(){
+    var seen={};
+    var cats=['Все'];
+    products.forEach(function(p){
+      if(p.category && !seen[p.category]){
+        seen[p.category]=true;
+        cats.push(p.category);
+      }
+    });
+    if(cats.indexOf(activeCat)===-1) activeCat='Все';
+    chipsEl.innerHTML='';
+    cats.forEach(function(cat){
+      var b=document.createElement('button');
+      b.className='chip'+(cat===activeCat?' active':'');
+      b.dataset.cat=cat;
+      b.textContent=cat;
+      b.onclick=function(){
+        activeCat=cat; haptic('light');
+        renderChips(); renderGrid();
+        closeDrawer();   // выбрал категорию — панель уезжает, товары на весь экран
+      };
+      chipsEl.appendChild(b);
+    });
+    buildDrawerExtras();
+  }
+
+  var QUICK=[
+    {key:'stock', label:'Только в наличии'},
+    {key:'new',   label:'Новинки'},
+    {key:'hit',   label:'Хиты'}
+  ];
+  function buildDrawerExtras(){
+    // В админке панель работает фильтром склада — витринные пункты там лишние
+    var inAdmin = adminSheet && adminSheet.classList.contains('show');
+    document.getElementById('drawerExtras').style.display = inAdmin ? 'none' : '';
+    if(inAdmin) return;
+
+    var box=document.getElementById('quickFilters');
+    box.innerHTML=QUICK.map(function(f){
+      return '<button type="button" data-quick="'+f.key+'"'+
+        (quickFilter===f.key?' class="active"':'')+'>'+f.label+'</button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-quick]'),function(b){
+      b.onclick=function(){
+        // Кнопки «Все товары» больше нет, поэтому фильтр снимается повторным
+        // нажатием: нажал «Новинки» ещё раз — снова весь магазин
+        quickFilter = (quickFilter===b.dataset.quick) ? 'all' : b.dataset.quick;
+        haptic('light');
+        buildDrawerExtras(); renderGrid();
+        closeDrawer();
+      };
+    });
+  }
+  document.getElementById('drawerCartBtn').onclick=function(){
+    closeDrawer();
+    if(!Object.keys(cart).length){ toast('Корзина пуста'); return; }
+    openSheet();
+  };
+  document.getElementById('drawerBonusBtn').onclick=function(){
+    closeDrawer();
+    openReferral();
+  };
+  function renderChips(){
+    Array.prototype.forEach.call(chipsEl.children,function(b){
+      b.classList.toggle('active', b.dataset.cat===activeCat);
+    });
+  }
+
+  // === Выдвижная панель категорий ===
+  // Одна панель на два экрана: на витрине фильтрует товары, в админке —
+  // список склада. Так она не занимает место ни там, ни там.
+  var drawer=document.getElementById('drawer');
+  var drawerBackdrop=document.getElementById('drawerBackdrop');
+  var drawerTab=document.getElementById('drawerTab');
+
+  function openDrawer(){
+    // Наполнение зависит от того, что сейчас открыто
+    var inAdmin = adminSheet && adminSheet.classList.contains('show');
+    document.getElementById('drawerSupply').style.display = inAdmin ? '' : 'none';
+    if(inAdmin){
+      document.getElementById('drawerTitle').textContent='Фильтр склада';
+      renderAdminFilters();
+      updateSupplyReadiness();
+      buildDrawerExtras();   // сам спрячет витринные пункты, пока открыт склад
+    } else {
+      document.getElementById('drawerTitle').textContent='Категории';
+      buildChips();
+    }
+    drawer.classList.add('show'); setScrollLock('drawer',true);
+    drawerBackdrop.classList.add('show');
+    pushNav('drawer', closeDrawer);
+    haptic('light');
+  }
+  function closeDrawer(){
+    drawer.classList.remove('show'); setScrollLock('drawer',false);
+    drawerBackdrop.classList.remove('show');
+    dropNav('drawer');
+  }
+  drawerTab.onclick=openDrawer;
+  document.getElementById('burgerBtn').onclick=openDrawer;
+  drawerBackdrop.onclick=closeDrawer;
+
+  // Свайп от левого края открывает панель, свайп по панели — закрывает
+  (function(){
+    var x0=null, y0=null, tracking=false;
+    document.addEventListener('touchstart', function(e){
+      var t=e.touches[0];
+      if(drawer.classList.contains('show')) return;
+      if(t.clientX>28) return;                 // тянуть можно только от края
+      if(lightbox.classList.contains('show')) return;
+      x0=t.clientX; y0=t.clientY; tracking=true;
+    }, {passive:true});
+    document.addEventListener('touchmove', function(e){
+      if(!tracking) return;
+      var t=e.touches[0];
+      if(Math.abs(t.clientY-y0)>40){ tracking=false; return; }  // это вертикальная прокрутка
+      if(t.clientX-x0>46){ tracking=false; openDrawer(); }
+    }, {passive:true});
+    document.addEventListener('touchend', function(){ tracking=false; }, {passive:true});
+
+    var dx0=null;
+    drawer.addEventListener('touchstart', function(e){ dx0=e.touches[0].clientX; }, {passive:true});
+    drawer.addEventListener('touchmove', function(e){
+      if(dx0!==null && dx0-e.touches[0].clientX>50){ dx0=null; closeDrawer(); }
+    }, {passive:true});
+  })();
+
+  // --- grid ---
+  var gridEl=document.getElementById('grid');
+  function renderGrid(){
+    var q=query.trim().toLowerCase();
+    var groups=groupProducts(products).filter(function(variants){
+      var rep=variants[0];
+      var multi=variants.length>1;
+      var matchesCat = activeCat==='Все' || rep.category===activeCat;
+      var matchesQuick =
+        quickFilter==='all'   ? true :
+        quickFilter==='stock' ? variants.some(function(v){ return v.inStock; }) :
+        quickFilter==='new'   ? variants.some(function(v){ return v.badge==='new'; }) :
+        quickFilter==='hit'   ? variants.some(function(v){ return v.badge==='hit'; }) : true;
+      if(!matchesQuick) return false;
+      var displayName = multi ? rep.group : rep.name;
+      var matchesQuery = !q ||
+        displayName.toLowerCase().indexOf(q)!==-1 ||
+        (rep.category||'').toLowerCase().indexOf(q)!==-1 ||
+        (rep.subcategory||'').toLowerCase().indexOf(q)!==-1 ||
+        variants.some(function(v){
+          return v.name.toLowerCase().indexOf(q)!==-1 ||
+                 (v.category||'').toLowerCase().indexOf(q)!==-1 ||
+                 (v.subcategory||'').toLowerCase().indexOf(q)!==-1;
+        });
+      return matchesCat && matchesQuery;
+    });
+    gridEl.innerHTML='';
+    if(!groups.length){
+      var empty=document.createElement('div');
+      empty.className='empty-state';
+      empty.textContent='Ничего не найдено';
+      gridEl.appendChild(empty);
+      return;
+    }
+    // Раскладываем по категориям: раньше товары шли подряд в том порядке,
+    // в каком их заводили, и жидкости перемешивались с одноразками.
+    // Порядок категорий — как в мастере товара, незнакомые уходят в конец.
+    var order=(TYPES||[]).map(function(t){ return t.cat; });
+    var byCat={}, catOrder=[];
+    groups.forEach(function(variants){
+      var cat=variants[0].category || 'Другое';
+      if(!byCat[cat]){ byCat[cat]=[]; catOrder.push(cat); }
+      byCat[cat].push(variants);
+    });
+    catOrder.sort(function(a,b){
+      var ia=order.indexOf(a), ib=order.indexOf(b);
+      if(ia===-1) ia=order.length;
+      if(ib===-1) ib=order.length;
+      return ia-ib;
+    });
+
+    // Внутри раздела сначала то, что есть в наличии: кончившееся опускается
+    // в конец своего раздела, а не разбавляет доступное. Сортировка
+    // устойчивая, поэтому среди доступных порядок остаётся прежним.
+    catOrder.forEach(function(cat){
+      byCat[cat].sort(function(a,b){
+        var ha=a.some(function(v){ return v.inStock; }) ? 1 : 0;
+        var hb=b.some(function(v){ return v.inStock; }) ? 1 : 0;
+        return hb-ha;
+      });
+    });
+
+    // Когда категория выбрана, заголовок над ней один и тот же — не нужен
+    var withHeads = catOrder.length>1;
+
+    catOrder.forEach(function(cat){
+      if(withHeads){
+        var head=document.createElement('div');
+        head.className='cat-head';
+        head.textContent=cat;
+        gridEl.appendChild(head);
+      }
+      byCat[cat].forEach(function(variants){
+      var rep=variants[0];
+      var multi=variants.length>1;
+      var displayName = multi ? rep.group : rep.name;
+      var anyInStock = variants.some(function(v){ return v.inStock; });
+      var card=document.createElement('div');
+      card.className='card'+(anyInStock?'':' out');
+      card.dataset.open=groupKeyOf(variants);
+
+      var priceLabel, actionHTML;
+      if(multi){
+        var prices=variants.map(function(v){ return v.price; });
+        var minP=Math.min.apply(null,prices), maxP=Math.max.apply(null,prices);
+        priceLabel = minP===maxP ? fmt(minP) : ('от '+fmt(minP));
+        actionHTML = '<span class="ctl-slot"><button class="add-btn" aria-label="Выбрать вкус">›</button></span>';
+      } else {
+        priceLabel = fmt(rep.price);
+        actionHTML = '<span class="ctl-slot" data-ctl="'+rep.id+'">'+cartControlHTML(rep, cart[rep.id]||0)+'</span>';
+      }
+
+      // Только количество: «3 вкуса». Сколько из них кончилось — видно внутри
+      // линейки, на витрине это лишний шум.
+      var subLine = multi
+        ? variants.length+' '+unitWord(rep, variants.length)
+        : (rep.tag || '');
+
+      card.innerHTML =
+        '<div class="thumb">'+
+          (rep.badge?'<span class="badge '+rep.badge+'">'+(rep.badge==='new'?'NEW':'ХИТ')+'</span>':'')+
+          thumbContent(coverOf(variants))+
+        '</div>'+
+        '<div class="info">'+
+          '<div class="name">'+esc(displayName)+'</div>'+
+          '<div class="tag">'+esc(subLine)+'</div>'+
+          '<div class="meta-line">'+
+            ratingHTML(variants)+
+            (!multi ? stockLineHTML(rep) : '')+
+          '</div>'+
+          '<div class="row-bottom">'+
+            '<span class="price">'+priceLabel+'</span>'+
+            actionHTML+
+          '</div>'+
+        '</div>';
+      gridEl.appendChild(card);
+    });
+    });
+    attachCardHandlers();
+  }
+  function getRatingFor(variants){
+    var ids=variants.map(function(v){ return String(v.id); });
+    var relevant=reviews.filter(function(r){ return ids.indexOf(r.product_id)!==-1; });
+    if(!relevant.length) return {avg:0, count:0};
+    var avg=relevant.reduce(function(s,r){ return s+r.rating; },0)/relevant.length;
+    return {avg:avg, count:relevant.length};
+  }
+  function plural(n, one, few, many){
+    var mod10=n%10, mod100=n%100;
+    if(mod10===1 && mod100!==11) return one;
+    if([2,3,4].indexOf(mod10)!==-1 && [12,13,14].indexOf(mod100)===-1) return few;
+    return many;
+  }
+  function unitWord(rep, n){
+    // для подиков и картриджей — "видов", для остального — "вкусов"
+    var cat = (rep.category||'').toLowerCase();
+    var sub = (rep.subcategory||'').toLowerCase();
+    var isVid = cat.indexOf('подик')!==-1 || cat.indexOf('картридж')!==-1 ||
+                sub.indexOf('подик')!==-1 || sub.indexOf('картридж')!==-1;
+    var base = isVid ? 'вид' : 'вкус';
+    var mod10=n%10, mod100=n%100;
+    if(mod10===1 && mod100!==11) return base;              // 1 вид / 1 вкус
+    if([2,3,4].indexOf(mod10)!==-1 && [12,13,14].indexOf(mod100)===-1) return base+'а'; // 2 вида / 2 вкуса
+    return base+(isVid?'ов':'ов');                          // 5 видов / 5 вкусов
+  }
+  function ratingHTML(variants){
+    var r=getRatingFor(variants);
+    return '<span class="rating"><span class="star">★</span>'+
+      (r.count ? r.avg.toFixed(1) : '0.0')+
+    '</span>';
+  }
+  function starsSmall(n){
+    var s='';
+    for(var i=1;i<=5;i++){ s += (i<=n ? '★' : '☆'); }
+    return s;
+  }
+  function cartControlHTML(p,qty){
+    if(!p.inStock) return '<button class="add-btn" style="opacity:.35" disabled aria-label="Нет в наличии">+</button>';
+    if(qty>0) return qtyControlHTML(p.id,qty,false);
+    return '<button class="add-btn" data-id="'+p.id+'" aria-label="Добавить в корзину">+</button>';
+  }
+  function attachCardHandlers(){
+    Array.prototype.forEach.call(gridEl.querySelectorAll('.card'),function(card){
+      card.onclick=function(e){
+        if(e.target.closest('[data-id]')) return;
+        openProductModal(card.dataset.open);
+      };
+    });
+    Array.prototype.forEach.call(gridEl.querySelectorAll('.add-btn[data-id]'),function(btn){
+      btn.onclick=function(e){ e.stopPropagation(); addToCart(+btn.dataset.id); };
+    });
+    bindQtyHandlers(gridEl);
+  }
+
+  // --- модалка товара (описание крупно, как карточка на Авито; поддержка групп вкусов) ---
+  var productSheet=document.getElementById('productSheet');
+  var productBackdrop=document.getElementById('productBackdrop');
+  var currentModalKey=null;
+
+  // Что показать на главной за всю линейку: заданную обложку, если её
+  // выставили в админке, иначе — фото первого вкуса, как было раньше.
+  function coverOf(variants){
+    var withCover=variants.find(function(v){ return v.cover; });
+    if(!withCover) return variants[0];
+    return {
+      image:normalizeImageUrl(withCover.cover),
+      rawImage:withCover.cover,
+      icon:variants[0].icon
+    };
+  }
+  function groupKeyOf(variants){
+    var rep=variants[0];
+    return variants.length>1 ? 'g:'+rep.group : 's:'+rep.id;
+  }
+
+  // Большой вариант — тот же контрол, только крупнее: раньше он собирался
+  // из инлайновых стилей и выглядел чужеродно на фоне карточек.
+  function qtyControlHTML(id, qty, big){
+    return '<div class="qty'+(big?' qty-big':'')+'" data-id="'+id+'">'+
+      '<button class="dec" aria-label="Убрать">−</button>'+
+      '<span>'+qty+'</span>'+
+      '<button class="inc" aria-label="Добавить">+</button>'+
+    '</div>';
+  }
+  function bindQtyHandlers(container, after){
+    Array.prototype.forEach.call(container.querySelectorAll('.qty'),function(el){
+      var id=+el.dataset.id;
+      el.querySelector('.inc').onclick=function(e){ if(e.stopPropagation) e.stopPropagation(); changeQty(id,1); if(after) after(); };
+      el.querySelector('.dec').onclick=function(e){ if(e.stopPropagation) e.stopPropagation(); changeQty(id,-1); if(after) after(); };
+    });
+  }
+
+  // === Экран линейки: сетка вкусов ===
+  function renderLineSheet(){
+    var variants=groupProducts(products).find(function(g){ return groupKeyOf(g)===currentModalKey; });
+    if(!variants) return;
+    var rep=variants[0];
+    document.getElementById('lineName').textContent = rep.group || rep.name;
+    document.getElementById('lineTag').textContent = [rep.category,rep.subcategory].filter(Boolean).join(' \u00b7 ');
+    // Только количество, без «в наличии N» — как и на карточке в списке.
+    document.getElementById('lineCount').textContent =
+      variants.length+' '+unitWord(rep,variants.length);
+
+    var gridEl=document.getElementById('flavorGrid');
+    // Сначала то, что есть в наличии: кончившиеся вкусы уходят вниз, чтобы
+    // не приходилось выискивать доступное среди недоступного.
+    // slice(), потому что variants — та же ссылка, что и в общем списке.
+    var ordered = variants.slice().sort(function(a,b){
+      return (b.inStock?1:0) - (a.inStock?1:0);
+    });
+    gridEl.innerHTML = ordered.map(function(v){
+      var r=getRatingFor([v]);
+      var q=cart[v.id]||0;
+      return '<div class="flavor-card'+(v.inStock?'':' out')+'" data-flavor="'+v.id+'">'+
+        '<div class="fthumb">'+
+          (v.badge?'<span class="badge '+v.badge+'">'+(v.badge==='new'?'NEW':'ХИТ')+'</span>':'')+
+          thumbContent(v)+
+        '</div>'+
+        '<div class="fbody">'+
+          '<div class="fname">'+esc(v.name)+'</div>'+
+          '<div class="meta-line">'+
+            '<span class="rating"><span class="star">\u2605</span>'+(r.count?r.avg.toFixed(1):'0.0')+
+              (r.count?' <span style="opacity:.7; font-weight:400;">('+r.count+')</span>':'')+
+            '</span>'+
+            stockLineHTML(v)+
+          '</div>'+
+          '<div class="frow">'+
+            '<span class="fprice">'+fmt(v.price)+'</span>'+
+            '<span class="ctl-slot" data-ctl="'+v.id+'">'+cartControlHTML(v, q)+'</span>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    // Обработчики вешаем через paintSlot: он же и перерисовывает только
+    // свой слот, поэтому сетка вкусов не пересобирается на каждый «+».
+    Array.prototype.forEach.call(gridEl.querySelectorAll('.ctl-slot[data-ctl]'), paintSlot);
+    Array.prototype.forEach.call(gridEl.querySelectorAll('[data-flavor]'),function(card){
+      card.onclick=function(e){
+        if(e.target.closest('[data-id]') || e.target.closest('.qty')) return;
+        openVariantSheet(+card.dataset.flavor);
+      };
+    });
+  }
+
+  // === Экран одного вкуса ===
+  var variantSheet=document.getElementById('variantSheet');
+  var variantBackdrop=document.getElementById('variantBackdrop');
+  var currentVariantId=null;
+
+  function currentVariant(){
+    return products.find(function(p){ return p.id===currentVariantId; });
+  }
+
+  function renderVariantSheet(){
+    var v=currentVariant();
+    if(!v) return;
+    var thumbEl=document.getElementById('vThumb');
+    if(thumbEl.dataset.for!==String(v.id)){
+      thumbEl.innerHTML=thumbContent(v);
+      thumbEl.dataset.for=String(v.id);
+      thumbEl.onclick=function(){ if(v.image) openLightbox(v.image); };
+    }
+    document.getElementById('vBadge').innerHTML = v.badge
+      ? '<span class="badge '+v.badge+'" style="position:static; display:inline-block; margin-bottom:8px;">'+(v.badge==='new'?'NEW':'ХИТ')+'</span>' : '';
+    document.getElementById('vName').textContent=v.name;
+    document.getElementById('vTag').textContent=[v.category,v.subcategory,v.group].filter(Boolean).join(' \u00b7 ');
+    var stockEl=document.getElementById('vStock');
+    var stockText=stockLabel(v);
+    stockEl.className='stock-line '+stockClass(v);
+    stockEl.textContent=stockText;
+    stockEl.style.display = stockText ? '' : 'none';
+    document.getElementById('vDesc').textContent = v.tag || 'Без описания';
+    document.getElementById('vPrice').textContent = fmt(v.price);
+
+    var actionEl=document.getElementById('vAction');
+    var q=cart[v.id]||0;
+    actionEl.innerHTML =
+      !v.inStock ? '<button class="checkout-btn" disabled style="opacity:.4">Нет в наличии</button>' :
+      q>0 ? qtyControlHTML(v.id,q,true) :
+      '<button class="checkout-btn" id="vAddBtn">Добавить в корзину</button>';
+    var addBtn=actionEl.querySelector('#vAddBtn');
+    if(addBtn) addBtn.onclick=function(){ addToCart(v.id); };
+    bindQtyHandlers(actionEl);
+
+    renderReviews([v]);
+  }
+
+  function openVariantSheet(id){
+    currentVariantId=id;
+    document.getElementById('vThumb').dataset.for='';
+    renderVariantSheet();
+    variantSheet.classList.add('show'); setScrollLock('variant',true);
+    variantBackdrop.classList.add('show');
+    pushNav('variant', closeVariantSheet);
+    updateCartBar();
+    haptic('light');
+  }
+  function closeVariantSheet(){
+    variantSheet.classList.remove('show'); setScrollLock('variant',false);
+    variantBackdrop.classList.remove('show');
+    currentVariantId=null;
+    dropNav('variant');
+    // Полную перерисовку грида НЕ делаем — она перезагружает все фото
+    // и страница «моргает». Достаточно освежить видимые счётчики.
+    refreshVisibleQty();
+    updateCartBar();
+  }
+  document.getElementById('variantBack').onclick=closeVariantSheet;
+  variantBackdrop.onclick=closeVariantSheet;
+  enableSwipeToClose(variantSheet, closeVariantSheet);
+
+  // === Просмотр фото во весь экран ===
+  var lightbox=document.getElementById('lightbox');
+  var lightboxImg=document.getElementById('lightboxImg');
+  function openLightbox(src){
+    lightboxImg.src=src;
+    lightboxImg.classList.remove('zoomed');
+    lightbox.classList.add('show'); setScrollLock('lightbox',true);
+    // Без этого кнопка «Назад» Telegram не знала о фото и переставала работать
+    pushNav('lightbox', closeLightbox);
+    haptic('light');
+  }
+  function closeLightbox(){
+    lightbox.classList.remove('show'); setScrollLock('lightbox',false);
+    lightboxImg.src='';
+    dropNav('lightbox');
+  }
+  document.getElementById('lightboxClose').onclick=closeLightbox;
+  lightboxImg.onclick=function(){ lightboxImg.classList.toggle('zoomed'); };
+  lightbox.onclick=function(e){ if(e.target===lightbox) closeLightbox(); };
+
+
+  function pluralOtziv(n){
+    var mod10=n%10, mod100=n%100;
+    if(mod10===1 && mod100!==11) return 'отзыв';
+    if([2,3,4].indexOf(mod10)!==-1 && [12,13,14].indexOf(mod100)===-1) return 'отзыва';
+    return 'отзывов';
+  }
+  function starsHTML(n, size){
+    var s='';
+    for(var i=1;i<=5;i++){ s += (i<=n ? '★' : '☆'); }
+    return '<span style="color:#ff9500;'+(size?'font-size:'+size+'px;':'')+'">'+s+'</span>';
+  }
+  var selectedRating=5;
+  function renderStarPicker(){
+    var el=document.getElementById('starPicker');
+    el.innerHTML='';
+    for(var i=1;i<=5;i++){
+      (function(i){
+        var s=document.createElement('span');
+        s.textContent = i<=selectedRating ? '★' : '☆';
+        s.style.color='#ff9500';
+        s.style.cursor='pointer';
+        s.onclick=function(){ selectedRating=i; renderStarPicker(); };
+        el.appendChild(s);
+      })(i);
+    }
+  }
+  renderStarPicker();
+
+  function renderReviews(variants){
+    var ids=variants.map(function(v){ return String(v.id); });
+    var relevant=reviews.filter(function(r){ return ids.indexOf(r.product_id)!==-1; });
+    var squareEl=document.getElementById('reviewsSquare');
+    var listEl=document.getElementById('reviewsList');
+    if(!relevant.length){
+      squareEl.innerHTML='<span style="color:#ff9500; font-size:26px; font-weight:700;">0.0</span>'+
+        '<span style="color:var(--hint); font-size:12px; margin-top:4px;">пока нет отзывов</span>';
+      listEl.innerHTML='';
+    } else {
+      var avg=relevant.reduce(function(s,r){ return s+r.rating; },0)/relevant.length;
+      squareEl.innerHTML='<span style="color:#ff9500; font-size:26px; font-weight:700;">★ '+avg.toFixed(1)+'</span>'+
+        '<span style="color:var(--hint); font-size:12px; margin-top:4px;">'+relevant.length+' '+pluralOtziv(relevant.length)+'</span>';
+      listEl.innerHTML=relevant.map(function(r){
+        return '<div style="background:var(--bg); border-radius:12px; padding:10px 12px;">'+
+          '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px;">'+
+            '<b style="font-size:13px;">'+r.name+'</b>'+starsHTML(r.rating,13)+
+          '</div>'+
+          (r.text ? '<div style="font-size:13px; color:var(--hint); line-height:1.4;">'+r.text+'</div>' : '')+
+        '</div>';
+      }).join('');
+    }
+  }
+
+  function sendToGAS(payload){
+    if(!GAS_URL){
+      // Apps Script не настроен — фолбэк на старый способ (через бота, закроет приложение)
+      try{ if(inRealTelegram && tg.sendData){ tg.sendData(JSON.stringify(payload)); return true; } }catch(e){}
+      toast('Отправка не настроена');
+      return false;
+    }
+    fetch(GAS_URL, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload)
+    }).catch(function(e){ console.error('GAS error', e); });
+    return true;
+  }
+
+  document.getElementById('submitReviewBtn').onclick=function(){
+    // Отзыв ставится на КОНКРЕТНЫЙ вкус, а не на всю линейку:
+    // человек пробовал один вкус, оценивать за остальные он не может.
+    var v=currentVariant();
+    if(!v){ toast('Сначала открой вкус'); return; }
+    var text=document.getElementById('reviewText').value.trim();
+    sendToGAS({action:'review', type:'review', product_id: v.id, rating: selectedRating, text: text, name: MY_NAME, user_id: MY_UID});
+    document.getElementById('reviewText').value='';
+    selectedRating=5;
+    renderStarPicker();
+    haptic('medium');
+    toast('Спасибо за отзыв!');
+  };
+
+  document.getElementById('reviewsSquare').onclick=function(){
+    document.getElementById('reviewsList').scrollIntoView({behavior:'smooth', block:'start'});
+  };
+  document.getElementById('suggestBtn').onclick=function(){
+    var box=document.getElementById('suggestBox');
+    box.style.display = box.style.display==='none' ? 'block' : 'none';
+  };
+  document.getElementById('submitSuggestBtn').onclick=function(){
+    var text=document.getElementById('suggestText').value.trim();
+    if(!text){ toast('Напиши хотя бы пару слов'); return; }
+    sendToGAS({action:'suggestion', type:'suggestion', text:text, name: MY_NAME, user_id: MY_UID});
+    document.getElementById('suggestText').value='';
+    document.getElementById('suggestBox').style.display='none';
+    haptic('medium');
+    toast('Спасибо за идею!');
+  };
+
+  function openProductModal(key){
+    var variants=groupProducts(products).find(function(g){ return groupKeyOf(g)===key; });
+    if(!variants) return;
+    // Одиночный товар — линейку показывать не из чего, открываем сразу карточку
+    if(variants.length===1){ openVariantSheet(variants[0].id); return; }
+    currentModalKey=key;
+    renderLineSheet();
+    productSheet.classList.add('show'); setScrollLock('product',true);
+    productBackdrop.classList.add('show');
+    pushNav('line', closeProductModal);
+    updateCartBar();
+    haptic('light');
+  }
+  function closeProductModal(){
+    productSheet.classList.remove('show'); setScrollLock('product',false);
+    productBackdrop.classList.remove('show');
+    currentModalKey=null;
+    dropNav('line');
+    refreshVisibleQty();
+    updateCartBar();
+  }
+  document.getElementById('productClose').onclick=closeProductModal;
+  productBackdrop.onclick=closeProductModal;
+  enableSwipeToClose(productSheet, closeProductModal);
+
+  // --- cart ---
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // Копирование с запасным путём: navigator.clipboard есть не во всех
+  // webview Telegram и отваливается асинхронно, поэтому обычный try/catch
+  // вокруг него ничего не ловит — нужен и промис-catch, и execCommand.
+  function copyText(text, okMsg){
+    function fallback(){
+      try{
+        var ta=document.createElement('textarea');
+        ta.value=text;
+        ta.setAttribute('readonly','');
+        ta.style.cssText='position:fixed; top:-1000px; opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        var ok=document.execCommand('copy');
+        document.body.removeChild(ta);
+        toast(ok ? okMsg : 'Не удалось скопировать');
+      }catch(e){ toast('Не удалось скопировать'); }
+    }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ toast(okMsg); }, fallback);
+      } else {
+        fallback();
+      }
+    }catch(e){ fallback(); }
+    haptic('light');
+  }
+
+  // === Навигация родной кнопкой «Назад» Telegram ===
+  // Свои «✕ Закрыть» прячем: Telegram и так рисует поверх страницы свои
+  // кнопки, две подряд мешают друг другу.
+  var navStack=[];
+  var hasNativeBack = !!(tg && tg.BackButton && tg.BackButton.show);
+  if(hasNativeBack) document.body.classList.add('tg-native-back');
+
+  function syncBackButton(){
+    // Язычок панели не должен висеть поверх открытых экранов
+    var tab=document.getElementById('drawerTab');
+    if(tab) tab.classList.toggle('hidden', navStack.length>0);
+    if(!hasNativeBack) return;
+    try{
+      if(navStack.length) tg.BackButton.show();
+      else tg.BackButton.hide();
+    }catch(e){}
+  }
+  function pushNav(name, closeFn){
+    navStack.push({name:name, close:closeFn});
+    syncBackButton();
+  }
+  function dropNav(name){
+    navStack=navStack.filter(function(e){ return e.name!==name; });
+    syncBackButton();
+  }
+  function popNav(){
+    var top=navStack[navStack.length-1];
+    if(top) top.close();
+  }
+  if(hasNativeBack){
+    try{ tg.BackButton.onClick(popNav); }catch(e){}
+  }
+  // Единая точка добавления: дальше склада не пускаем
+  function addToCart(id){
+    var p=products.find(function(pr){ return pr.id===+id; });
+    if(!p) return;
+    if(!p.inStock){ toast('Этого вкуса нет в наличии'); return; }
+    if(maxAddable(p)<=0){
+      toast('Больше нет: на складе '+p.stock+' шт.');
+      haptic('light');
+      return;
+    }
+    changeQty(+id,1);
+    // Корзину НЕ открываем: человек обычно набирает несколько вкусов подряд,
+    // и выбрасывать его из линейки после каждого — мешать покупать.
+    toast('Добавлено в корзину');
+  }
+  function changeQty(id,delta){
+    var p=products.find(function(pr){ return pr.id===+id; });
+    // Не даём набрать в корзину больше, чем есть на складе
+    if(delta>0 && p && p.stock!==null && (cart[id]||0)+delta>p.stock){
+      toast('На складе только '+p.stock+' шт.');
+      return;
+    }
+    cart[id]=(cart[id]||0)+delta;
+    if(cart[id]<=0) delete cart[id];
+    haptic('light');
+    refreshQtyControls(id);
+    updateCartBar();
+    // Корзину пересобираем, только если она открыта — иначе это была
+    // холостая перерисовка на каждый «+».
+    if(sheet.classList.contains('show')) renderCartSheet();
+  }
+  // Обновляем ТОЛЬКО слот с кнопками у нужного товара. Полная перерисовка
+  // грида заставляла браузер заново тянуть все фото — отсюда и «страница
+  // обновляется» при добавлении в корзину.
+  function paintSlot(slot){
+    var id=+slot.dataset.ctl;
+    var p=products.find(function(pr){ return pr.id===id; });
+    if(!p) return;
+    slot.innerHTML=cartControlHTML(p, cart[id]||0);
+    var addb=slot.querySelector('.add-btn[data-id]');
+    if(addb){
+      addb.onclick=function(e){ e.stopPropagation(); addToCart(id); };
+    }
+    var qtyEl=slot.querySelector('.qty');
+    if(qtyEl){
+      qtyEl.querySelector('.inc').onclick=function(e){ e.stopPropagation(); changeQty(id,1); };
+      qtyEl.querySelector('.dec').onclick=function(e){ e.stopPropagation(); changeQty(id,-1); };
+    }
+  }
+  function refreshQtyControls(id){
+    Array.prototype.forEach.call(
+      document.querySelectorAll('.ctl-slot[data-ctl="'+id+'"]'), paintSlot);
+    // Экран вкуса: там своя большая кнопка, точечно обновим только её
+    if(variantSheet.classList.contains('show') && currentVariantId===+id){
+      paintVariantAction();
+    }
+  }
+  // Освежить все видимые счётчики разом (после закрытия экранов),
+  // не трогая картинки и не пересобирая разметку карточек.
+  function refreshVisibleQty(){
+    Array.prototype.forEach.call(document.querySelectorAll('.ctl-slot[data-ctl]'), paintSlot);
+  }
+  function paintVariantAction(){
+    var v=currentVariant();
+    if(!v) return;
+    var actionEl=document.getElementById('vAction');
+    var q=cart[v.id]||0;
+    actionEl.innerHTML =
+      !v.inStock ? '<button class="checkout-btn" disabled style="opacity:.4">Нет в наличии</button>' :
+      q>0 ? qtyControlHTML(v.id,q,true) :
+      '<button class="checkout-btn" id="vAddBtn">Добавить в корзину</button>';
+    var addBtn=actionEl.querySelector('#vAddBtn');
+    if(addBtn) addBtn.onclick=function(){ addToCart(v.id); };
+    bindQtyHandlers(actionEl);
+  }
+
+  function cartCount(){
+    return Object.keys(cart).reduce(function(sum,id){ return sum+cart[id]; },0);
+  }
+  function cartTotal(){
+    return Object.keys(cart).reduce(function(sum,id){
+      var p=products.find(function(p){ return p.id===+id; });
+      return sum + (p ? p.price*cart[id] : 0);
+    },0);
+  }
+  function updateCartBar(){
+    var bar=document.getElementById('cartBar');
+    var c=cartCount();
+    document.getElementById('cartBarTotal').textContent=fmt(cartTotal());
+    var cartSheetOpen = document.getElementById('sheet').classList.contains('show');
+    if(c>0 && !cartSheetOpen){ bar.classList.remove('cart-hidden'); }
+    else{ bar.classList.add('cart-hidden'); }
+  }
+  function renderCartSheet(){
+    var wrap=document.getElementById('cartItems');
+    var ids=Object.keys(cart);
+    if(!ids.length){
+      wrap.innerHTML='<div class="empty-cart">Корзина пуста</div>';
+    } else {
+      wrap.innerHTML = ids.map(function(id){
+        var p=products.find(function(p){ return p.id===+id; });
+        var q=cart[id];
+        // Только название вкуса: линейка уже названа выше по экрану,
+        // второй раз в каждой строке она лишняя.
+        return '<div class="cart-item">'+
+          '<div class="thumb-sm">'+thumbContent(p)+'</div>'+
+          '<div class="meta"><div class="name">'+p.name+'</div><div class="price">'+fmt(p.price)+' × '+q+'</div></div>'+
+          qtyControlHTML(p.id,q,false)+
+        '</div>';
+      }).join('');
+      bindQtyHandlers(wrap);
+    }
+    document.getElementById('sheetTotal').textContent=fmt(cartTotal());
+  }
+
+  // --- sheet ---
+  var sheet=document.getElementById('sheet');
+  var backdrop=document.getElementById('backdrop');
+  // Доставки нет: клиент подходит на фиксированное место. Адрес показываем
+  // сразу на оформлении — время встречи без него назначить невозможно.
+  // При переезде править ЗДЕСЬ и в bot.py (MEETING_PLACE).
+  var MEETING_PLACE = 'Маршала Жукова 20';
+  document.getElementById('meetPlace').textContent = MEETING_PLACE;
+
+  // Адрес нужно унести в карты, а выделять текст внутри Mini App неудобно —
+  // и с телефона, и с ПК. Копируем одной кнопкой.
+  document.getElementById('copyPlace').onclick=function(){
+    copyText(MEETING_PLACE, 'Адрес скопирован');
+  };
+
+  var steps=['cartView','orderView'];
+  function showStep(name){
+    steps.forEach(function(id){
+      document.getElementById(id).style.display = (id===name) ? '' : 'none';
+    });
+  }
+  // pushNav/dropNav не только включают родную кнопку «Назад», но и прячут
+  // язычок панели категорий у левого края: без этого его можно было вытянуть
+  // прямо поверх открытой корзины.
+  function openSheet(){
+    renderCartSheet(); showStep('cartView');
+    sheet.classList.add('show'); backdrop.classList.add('show');
+    setScrollLock('cart',true); pushNav('cart', closeSheet); updateCartBar();
+  }
+  function closeSheet(){
+    sheet.classList.remove('show'); backdrop.classList.remove('show');
+    setScrollLock('cart',false); dropNav('cart'); updateCartBar();
+  }
+  enableSwipeToClose(sheet, closeSheet);
+  document.getElementById('cartBar').onclick=function(){
+    closeProductModal();
+    openSheet();
+  };
+  backdrop.onclick=closeSheet;
+
+  function getBonusToUse(){
+    var check=document.getElementById('useBonusCheck');
+    return check.checked ? Math.min(myBalance, cartTotal()) : 0;
+  }
+
+  // Пересчёт итога на экране оформления: бонусы — единственное, что его меняет
+  function renderOrderTotal(){
+    var used=getBonusToUse();
+    document.getElementById('orderTotal').textContent =
+      fmt(Math.max(0, cartTotal()-used)) + (used ? ' (−'+used+' бонусов)' : '');
+  }
+
+  document.getElementById('checkoutBtn').onclick=function(){
+    if(!Object.keys(cart).length){ toast('Корзина пуста'); return; }
+
+    // Состав заказа тут не повторяем: он только что был на экране корзины,
+    // с которого сюда и пришли.
+    var maxBonus=Math.min(myBalance, cartTotal());
+    var bonusRow=document.getElementById('bonusRow');
+    if(maxBonus>0){
+      bonusRow.style.display='flex';
+      document.getElementById('bonusAvailable').textContent=maxBonus;
+      document.getElementById('useBonusCheck').checked=false;
+    } else {
+      bonusRow.style.display='none';
+    }
+
+    renderOrderTotal();
+    showStep('orderView');
+    haptic('light');
+  };
+
+  document.getElementById('useBonusCheck').onchange=renderOrderTotal;
+
+  // Начал печатать — красная рамка больше не нужна, ошибка исправлена
+  document.getElementById('orderTime').addEventListener('input',function(){
+    this.classList.remove('invalid');
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.back-btn[data-back]'),function(btn){
+    btn.onclick=function(){
+      showStep('cartView');
+      haptic('light');
+    };
+  });
+
+  document.getElementById('orderSendBtn').onclick=function(){
+    var timeEl=document.getElementById('orderTime');
+    if(!timeEl.value.trim()){
+      toast('Укажи время встречи');
+      timeEl.classList.add('invalid');
+      timeEl.focus();
+      haptic('heavy');
+      return;
+    }
+    timeEl.classList.remove('invalid');
+    document.getElementById('orderProblem').style.display='none';
+    bonusToUse=getBonusToUse();
+    submitOrder();
+  };
+
+  var COMMUNITY_CHAT_URL = 'https://t.me/chipatap_baraholka40';
+  document.getElementById('communityLink').href = COMMUNITY_CHAT_URL;
+
+  // --- отправка заказа боту ---
+  // ВАЖНО: sendData работает ТОЛЬКО если магазин открыт с клавиатурной
+  // web_app-кнопки. Открыт с inline-кнопки — sendData молча ничего не делает:
+  // ни ошибки, ни исключения, заказ просто исчезает. Поэтому ниже стоит
+  // проверка «приложение всё ещё открыто» — иначе клиент уверен, что заказал.
+  function submitOrder(){
+    var order={
+      type:'checkout',
+      items:Object.keys(cart).map(function(id){ return {id:+id, qty:cart[id]}; }),
+      total:cartTotal(),
+      bonus_used:bonusToUse,
+      meet_time:document.getElementById('orderTime').value.trim(),
+      contact:document.getElementById('orderContact').value.trim()
+    };
+    if(!CAN_ORDER){
+      showOrderProblem('Отсюда заказ не оформить: магазин открыт кнопкой меню. Закрой его и открой кнопкой «🛒 Открыть магазин» внизу чата с ботом — там оформление работает.');
+      return;
+    }
+    var sent=false;
+    try{
+      if(inRealTelegram && tg.sendData){
+        tg.sendData(JSON.stringify(order));
+        sent=true;
+      }
+    }catch(e){}
+
+    if(!sent){
+      showOrderProblem('Заказ уходит боту только из Telegram. Открой магазин из чата с ботом.');
+      return;
+    }
+
+    // Удачная отправка закрывает приложение мгновенно. Если через 2 секунды мы
+    // всё ещё здесь — данные не ушли, и молчать об этом нельзя.
+    setTimeout(function(){
+      showOrderProblem('Заказ не отправился. Закрой магазин и открой его кнопкой «🛒 Открыть магазин» в чате с ботом, затем оформи заказ заново.');
+    }, 2000);
+    haptic('medium');
+  }
+
+  function showOrderProblem(msg){
+    var box=document.getElementById('orderProblem');
+    box.textContent=msg;
+    box.style.display='block';
+    toast('Заказ не отправился');
+    haptic('heavy');
+  }
+
+  // --- search ---
+  document.getElementById('searchInput').addEventListener('input',function(e){
+    query=e.target.value;
+    // при активном поиске ищем по всему магазину, не ограничиваясь категорией
+    if(query.trim() && activeCat!=='Все'){
+      activeCat='Все';
+      renderChips();
+    }
+    renderGrid();
+  });
+
+  // --- toast ---
+  var toastTimer;
+  function toast(msg){
+    var el=document.getElementById('toast');
+    el.textContent=msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){ el.classList.remove('show'); },1800);
+  }
+
+  // --- haptics ---
+  function haptic(style){
+    try{ tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(style); }catch(e){}
+  }
+
+  // --- свайп вниз для закрытия шторки (тянуть за "ручку" наверху) ---
+  function enableSwipeToClose(sheetEl, closeFn){
+    var handle=sheetEl.querySelector('.handle-zone');
+    if(!handle) return;
+    var startY=0, deltaY=0, dragging=false;
+    handle.addEventListener('touchstart', function(e){
+      dragging=true;
+      startY=e.touches[0].clientY;
+      sheetEl.style.transition='none';
+    }, {passive:true});
+    handle.addEventListener('touchmove', function(e){
+      if(!dragging) return;
+      deltaY=Math.max(0, e.touches[0].clientY-startY);
+      sheetEl.style.transform='translateY('+deltaY+'px)';
+    }, {passive:true});
+    function endDrag(){
+      if(!dragging) return;
+      dragging=false;
+      sheetEl.style.transition='';
+      sheetEl.style.transform='';
+      if(deltaY>80) closeFn();
+      deltaY=0;
+    }
+    handle.addEventListener('touchend', endDrag);
+    handle.addEventListener('touchcancel', endDrag);
+  }
+
+  // --- админка ---
+  var adminSheet=document.getElementById('adminSheet');
+  var adminBackdrop=document.getElementById('adminBackdrop');
+  var adminSteps=['adminListView','adminFormView','adminSupplyView'];
+  var editingId=null;
+  var adminQuery='';
+  var adminCat='Все';
+  var pendingStock={};   // id -> новое количество, пока не сохранено
+
+  // Держит поле над клавиатурой. visualViewport даёт реальную высоту
+  // видимой области после её появления — обычный innerHeight про неё не знает.
+  function keepAboveKeyboard(el){
+    var vv=window.visualViewport;
+    // Без запаса снизу последние строки просто некуда прокручивать —
+    // они так и остаются под клавиатурой. Спейсер даёт этот запас.
+    var spacer=document.getElementById('adminSpacer');
+    if(spacer) spacer.style.height='70vh';
+    var run=function(){
+      var visH = vv ? vv.height : window.innerHeight;
+      var rect = el.getBoundingClientRect();
+      var target = visH*0.22;               // строка встаёт под самой шапкой
+      var delta = rect.top - target;
+      if(Math.abs(delta)>10) adminSheet.scrollTop += delta;
+    };
+    // Клавиатура появляется не мгновенно: ждём события, иначе замер врёт
+    if(vv){
+      var once=function(){ run(); vv.removeEventListener('resize', once); };
+      vv.addEventListener('resize', once);
+    }
+    setTimeout(run, 120);
+    setTimeout(run, 360);
+    var release=function(){
+      if(spacer) spacer.style.height='0';
+      el.removeEventListener('blur', release);
+    };
+    el.addEventListener('blur', release);
+  }
+
+  function showAdminStep(name){
+    adminSteps.forEach(function(id){
+      document.getElementById(id).style.display = (id===name) ? '' : 'none';
+    });
+  }
+  function openAdmin(){
+    renderAdminList();
+    showAdminStep('adminListView');
+    adminSheet.classList.add('show');
+    setScrollLock('admin', true);   // фон под страницей не скроллим
+    pushNav('admin', closeAdmin);
+    updateCartBar();
+  }
+  // Родное окно Telegram, если оно есть: confirm() в Mini App блокирует
+  // страницу и на части клиентов не показывается вовсе.
+  function ask(text, onYes){
+    try{
+      if(tg && tg.showConfirm){
+        tg.showConfirm(text, function(ok){ if(ok) onYes(); });
+        return;
+      }
+    }catch(e){}
+    if(confirm(text)) onYes();
+  }
+
+  function closeAdmin(){
+    // Несохранённые остатки живут только в приложении: уйдёшь — пропадут
+    var pendingCount=Object.keys(pendingStock).length;
+    if(pendingCount && document.getElementById('adminListView').style.display!=='none'){
+      ask('Не сохранено правок: '+pendingCount+'. Выйти и потерять их?', function(){
+        pendingStock={};
+        forceCloseAdmin();
+      });
+      return;
+    }
+    forceCloseAdmin();
+  }
+
+  function forceCloseAdmin(){
+    // Внутри мастера «назад» — это шаг назад, а не выход из админки
+    if(document.getElementById('adminFormView').style.display!=='none'){
+      if(wizIndex>0){ showWizStep(wizIndex-1); return; }
+      showAdminStep('adminListView');
+      document.getElementById('adminHeadTitle').textContent='Склад';
+      renderAdminList();
+      return;
+    }
+    if(document.getElementById('adminSupplyView').style.display!=='none'){
+      showAdminStep('adminListView');
+      document.getElementById('adminHeadTitle').textContent='Склад';
+      return;
+    }
+    adminSheet.classList.remove('show');
+    setScrollLock('admin', false);
+    dropNav('admin');
+    updateCartBar();
+  }
+  document.getElementById('adminBtn').onclick=openAdmin;
+  document.getElementById('adminCloseBtn').onclick=closeAdmin;
+  document.getElementById('adminDrawerBtn').onclick=openDrawer;
+
+  // --- рефералка ---
+  var referralSheet=document.getElementById('referralSheet');
+  var referralBackdrop=document.getElementById('referralBackdrop');
+  function updateBalanceUI(){
+    document.getElementById('balanceLabel').textContent=myBalance;
+    document.getElementById('referralBalance').textContent=fmt(myBalance);
+  }
+  function openReferral(){
+    var link = MY_UID ? ('https://t.me/'+BOT_USERNAME+'?start=ref'+MY_UID) : 'Открой магазин из Telegram, чтобы получить свою ссылку';
+    document.getElementById('referralLink').textContent=link;
+    updateBalanceUI();
+    referralSheet.classList.add('show'); setScrollLock('referral',true);
+    referralBackdrop.classList.add('show');
+    updateCartBar();
+  }
+  function closeReferral(){
+    referralSheet.classList.remove('show'); setScrollLock('referral',false);
+    referralBackdrop.classList.remove('show');
+    updateCartBar();
+  }
+  document.getElementById('referralBtn').onclick=openReferral;
+  document.getElementById('referralBanner').onclick=openReferral;
+  document.getElementById('referralClose').onclick=closeReferral;
+  referralBackdrop.onclick=closeReferral;
+  enableSwipeToClose(referralSheet, closeReferral);
+  document.getElementById('copyReferral').onclick=function(){
+    copyText(document.getElementById('referralLink').textContent, 'Ссылка скопирована');
+  };
+
+  var SHARE_TEXT='Магазин Chipatap — заходи по моей ссылке, обоим капнут бонусы';
+  document.getElementById('shareReferral').onclick=function(){
+    if(!MY_UID){ toast('Открой магазин из Telegram, чтобы получить ссылку'); return; }
+    var link='https://t.me/'+BOT_USERNAME+'?start=ref'+MY_UID;
+    haptic('medium');
+    // t.me/share/url — родной выбор получателя в Telegram: список контактов
+    // открывается сразу, ссылка уходит одним касанием
+    var share='https://t.me/share/url?url='+encodeURIComponent(link)+
+              '&text='+encodeURIComponent(SHARE_TEXT);
+    try{
+      if(tg && tg.openTelegramLink){ tg.openTelegramLink(share); return; }
+    }catch(e){}
+    // Вне Telegram — системное «Поделиться», а если и его нет, копируем
+    try{
+      if(navigator.share){
+        navigator.share({title:'Chipatap', text:SHARE_TEXT, url:link});
+        return;
+      }
+    }catch(e){}
+    try{ navigator.clipboard.writeText(link); toast('Ссылка скопирована'); }
+    catch(e){ toast('Не удалось поделиться'); }
+  };
+
+  // Текущее количество с учётом несохранённых правок
+  function effStock(p){
+    return Object.prototype.hasOwnProperty.call(pendingStock,p.id) ? pendingStock[p.id] : p.stock;
+  }
+  function setPendingStock(id, value){
+    var p=products.find(function(pr){ return pr.id===id; });
+    if(!p) return;
+    if(value===null || value==='' || isNaN(value)){ delete pendingStock[id]; }
+    else {
+      var n=Math.max(0, Math.floor(value));
+      if(n===p.stock) delete pendingStock[id];   // вернули как было — правка не нужна
+      else pendingStock[id]=n;
+    }
+    // Полный renderAdminList() здесь пересобирал весь список и сбрасывал
+    // фокус с поля ввода — из-за этого при наборе «кидало» по странице.
+    // Обновляем только эту строку.
+    updateAdminRow(id);
+    renderPendingBar();
+    renderAdminSummary();
+  }
+  function updateAdminRow(id){
+    var inp=document.querySelector('[data-stock="'+id+'"]');
+    if(!inp) return;
+    var row=inp.closest('.admin-row');
+    var p=products.find(function(pr){ return pr.id===id; });
+    if(!p || !row) return;
+    var s=effStock(p);
+    var changed=Object.prototype.hasOwnProperty.call(pendingStock,p.id);
+    var avail = s!==null ? s>0 : p.inStock;
+    row.classList.toggle('changed', changed && avail);
+    row.classList.toggle('changed-out', changed && !avail);
+    // Значение в поле трогаем, только если пользователь сейчас не печатает в нём
+    if(document.activeElement!==inp) inp.value = (s===null?'':s);
+    var sub=row.querySelector('.sub');
+    if(sub) sub.innerHTML='#'+p.id+' · '+esc(fmt(p.price))+' · '+stockSub(s, avail);
+  }
+
+  // «кончилось» всегда красным — по списку видно, что уже выбрано под ноль
+  function stockSub(s, avail){
+    if(s===null) return 'учёт не ведётся';
+    return avail ? s+' шт.' : '<span class="out">кончилось</span>';
+  }
+
+  function adminFilteredProducts(){
+    var q=adminQuery.trim().toLowerCase();
+    return products.filter(function(p){
+      if(adminCat!=='Все' && p.category!==adminCat) return false;
+      if(!q) return true;
+      return (p.name||'').toLowerCase().indexOf(q)!==-1 ||
+             (p.group||'').toLowerCase().indexOf(q)!==-1 ||
+             (p.category||'').toLowerCase().indexOf(q)!==-1 ||
+             (p.subcategory||'').toLowerCase().indexOf(q)!==-1 ||
+             String(p.id)===q;
+    });
+  }
+
+  // Фильтр склада рисуется в той же выдвижной панели, что и категории
+  // витрины — на самой странице места он больше не занимает.
+  function renderAdminFilters(){
+    var box=document.getElementById('chips');
+    var cats=['Все'].concat(products.map(function(p){ return p.category; })
+      .filter(function(c,i,a){ return c && a.indexOf(c)===i; }));
+    box.innerHTML=cats.map(function(c){
+      return '<button'+(c===adminCat?' class="active"':'')+' data-acat="'+esc(c)+'">'+esc(c)+'</button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-acat]'),function(b){
+      b.onclick=function(){
+        adminCat=b.dataset.acat;
+        renderAdminList();
+        closeDrawer();
+      };
+    });
+  }
+
+  function renderAdminSummary(){
+    var total=products.length;
+    var out=products.filter(function(p){ var s=effStock(p); return s!==null ? s<=0 : !p.inStock; }).length;
+    var low=products.filter(function(p){ var s=effStock(p); return s!==null && s>0 && s<=3; }).length;
+    var untracked=products.filter(function(p){ return effStock(p)===null; }).length;
+    document.getElementById('adminSummary').innerHTML =
+      '<span>всего <b>'+total+'</b></span>'+
+      '<span>кончилось <b>'+out+'</b></span>'+
+      '<span>мало (до 3) <b>'+low+'</b></span>'+
+      '<span>без учёта <b>'+untracked+'</b></span>';
+  }
+
+  function renderAdminList(){
+    var list=document.getElementById('adminList');
+    if(!list) return;
+    renderAdminFilters();
+    renderAdminSummary();
+
+    var items=adminFilteredProducts();
+    if(!items.length){
+      list.innerHTML='<div class="empty-cart">Ничего не найдено</div>';
+      renderPendingBar();
+      return;
+    }
+
+    // Группируем по линейке — так склад читается так же, как он лежит в жизни
+    var groups={}, order=[];
+    items.forEach(function(p){
+      var key=p.group || 'Без линейки';
+      if(!groups[key]){ groups[key]=[]; order.push(key); }
+      groups[key].push(p);
+    });
+
+    list.innerHTML=order.map(function(key){
+      var rows=groups[key].map(function(p){
+        var s=effStock(p);
+        var changed=Object.prototype.hasOwnProperty.call(pendingStock,p.id);
+        var avail = s!==null ? s>0 : p.inStock;
+        var mark = changed ? (avail ? ' changed' : ' changed-out') : '';
+        return '<div class="admin-row'+mark+'">'+
+          '<div class="thumb-sm">'+thumbContent(p)+'</div>'+
+          '<div class="meta">'+
+            '<div class="name">'+esc(p.name)+'</div>'+
+            '<div class="sub">#'+p.id+' · '+esc(fmt(p.price))+' · '+stockSub(s, avail)+'</div>'+
+          '</div>'+
+          '<div class="stock-box">'+
+            '<button data-dec="'+p.id+'" aria-label="Меньше">−</button>'+
+            '<input type="number" inputmode="numeric" min="0" data-stock="'+p.id+'" value="'+(s===null?'':s)+'" placeholder="—">'+
+            '<button data-inc="'+p.id+'" aria-label="Больше">+</button>'+
+          '</div>'+
+          '<button class="icon-btn" data-edit="'+p.id+'" aria-label="Редактировать">✏️</button>'+
+        '</div>';
+      }).join('');
+      var items=groups[key];
+      var outCount=items.filter(function(p){
+        var s=effStock(p); return s!==null ? s<=0 : !p.inStock;
+      }).length;
+      return '<div class="admin-group">'+
+        '<div class="admin-group-title">'+
+          esc(key)+
+          '<span class="count">'+items.length+' '+plural(items.length,'товар','товара','товаров')+
+            (outCount ? ' · '+outCount+' нет' : '')+
+          '</span>'+
+        '</div>'+
+        '<div class="admin-group-rows">'+rows+'</div>'+
+      '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(list.querySelectorAll('[data-inc]'),function(b){
+      b.onclick=function(){
+        var id=+b.dataset.inc;
+        var p=products.find(function(pr){ return pr.id===id; });
+        var cur=effStock(p);
+        setPendingStock(id, (cur===null?0:cur)+1);
+        haptic('light');
+      };
+    });
+    Array.prototype.forEach.call(list.querySelectorAll('[data-dec]'),function(b){
+      b.onclick=function(){
+        var id=+b.dataset.dec;
+        var p=products.find(function(pr){ return pr.id===id; });
+        var cur=effStock(p);
+        setPendingStock(id, Math.max(0,(cur===null?0:cur)-1));
+        haptic('light');
+      };
+    });
+    // В самом списке поле только показывает число: тап открывает редактор
+    // сверху экрана. Клавиатура снизу — перекрыть его нечем.
+    Array.prototype.forEach.call(list.querySelectorAll('[data-stock]'),function(inp){
+      inp.readOnly=true;   // в списке не печатаем — только показываем
+      inp.onclick=function(){ openQtyEditor(+inp.dataset.stock); };
+    });
+    Array.prototype.forEach.call(list.querySelectorAll('[data-edit]'),function(btn){
+      btn.onclick=function(){ openAdminForm(+btn.dataset.edit); };
+    });
+
+    renderPendingBar();
+    updateSupplyReadiness();
+  }
+
+  // === Редактор количества (закреплён сверху) ===
+  var qed=document.getElementById('qed');
+  var qedBackdrop=document.getElementById('qedBackdrop');
+  var qedInput=document.getElementById('qedInput');
+  var qedId=null;
+
+  function openQtyEditor(id){
+    var p=products.find(function(pr){ return pr.id===id; });
+    if(!p) return;
+    qedId=id;
+    var s=effStock(p);
+    document.getElementById('qedName').textContent=p.name+(p.group?' · '+p.group:'');
+    qedInput.value = (s===null?'':s);
+    qed.classList.add('show');
+    qedBackdrop.classList.add('show');
+    pushNav('qed', closeQtyEditor);
+    haptic('light');
+    // Фокус только после анимации, иначе клавиатура успевает дёрнуть вёрстку
+    setTimeout(function(){ try{ qedInput.focus(); qedInput.select(); }catch(e){} }, 260);
+  }
+  function closeQtyEditor(){
+    applyQtyEditor();
+    qed.classList.remove('show');
+    qedBackdrop.classList.remove('show');
+    try{ qedInput.blur(); }catch(e){}
+    dropNav('qed');
+    qedId=null;
+  }
+  function applyQtyEditor(){
+    if(qedId===null) return;
+    var v=qedInput.value.trim();
+    setPendingStock(qedId, v===''?null:parseInt(v,10));
+  }
+  function qedBump(delta){
+    var cur=parseInt(qedInput.value,10);
+    if(isNaN(cur)) cur=0;
+    qedInput.value=Math.max(0, cur+delta);
+    applyQtyEditor();
+    haptic('light');
+  }
+  Array.prototype.forEach.call(qed.querySelectorAll('[data-qd]'),function(b){
+    b.onclick=function(){ qedBump(parseInt(b.dataset.qd,10)); };
+  });
+  Array.prototype.forEach.call(qed.querySelectorAll('[data-qs]'),function(b){
+    b.onclick=function(){ qedInput.value=b.dataset.qs; applyQtyEditor(); haptic('light'); };
+  });
+  qedInput.oninput=applyQtyEditor;
+  qedInput.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); closeQtyEditor(); } };
+  document.getElementById('qedDone').onclick=closeQtyEditor;
+  qedBackdrop.onclick=closeQtyEditor;
+
+  function renderPendingBar(){
+    var n=Object.keys(pendingStock).length;
+    // visibility, а не display: кнопка появлялась при первой же правке,
+    // раздвигала шапку, и весь список дёргался вбок на пару пикселей.
+    // Место под неё держим всегда — тогда ничего не смещается.
+    document.getElementById('adminBatchSaveBtn').style.visibility = n>0 ? '' : 'hidden';
+    document.getElementById('adminPendingCount').textContent = n;
+  }
+
+  // Поиска по названию в админке больше нет — фильтр по категориям
+  // и группировка по линейкам справляются, а места он занимал много.
+  document.getElementById('adminBatchSaveBtn').onclick=function(){
+    var changes=Object.keys(pendingStock).map(function(id){
+      return {id:+id, stock:pendingStock[id]};
+    });
+    if(!changes.length){ toast('Нечего сохранять'); return; }
+    sendAdminAction('admin_batch', {changes:changes});
+  };
+
+  // --- объявление о поставке ---
+  // В рассылку идёт ТОЛЬКО свежее: добавленное или пополненное за последние
+  // сутки. Иначе люди каждый раз получали бы список всего склада.
+  var SUPPLY_WINDOW_H = 24;
+
+  function parseStamp(s){
+    s=String(s||'').trim();
+    if(!s) return null;
+    // «2026-08-09 00:12:33» — Safari не понимает такой формат без T
+    var d=new Date(s.replace(' ','T'));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function isRecent(p){
+    var limit=Date.now()-SUPPLY_WINDOW_H*3600*1000;
+    var a=parseStamp(p.added), r=parseStamp(p.restocked);
+    return !!((a && a.getTime()>=limit) || (r && r.getTime()>=limit));
+  }
+  function recentSupplyItems(){
+    return products.filter(function(p){
+      if(!isRecent(p)) return false;
+      var s=effStock(p);
+      return s===null ? p.inStock : s>0;   // объявлять то, чего нет, незачем
+    });
+  }
+  function buildSupplyText(){
+    var fresh=recentSupplyItems();
+    if(!fresh.length) return '';
+    var byGroup={}, order=[];
+    fresh.forEach(function(p){
+      var k=p.group||p.name;
+      if(!byGroup[k]){ byGroup[k]=[]; order.push(k); }
+      byGroup[k].push(p);
+    });
+    var lines=order.slice(0,25).map(function(k){
+      var vs=byGroup[k];
+      return vs.length>1
+        ? '- '+k+' — '+vs.length+' '+unitWord(vs[0],vs.length)
+        : '- '+k+(vs[0].group?'':'');
+    });
+    return 'Приехала поставка! Уже можно заказать:\n\n'+lines.join('\n')+
+           (order.length>25 ? '\n...и другое' : '')+
+           '\n\nЗаходи и забирай, пока есть';
+  }
+  function updateSupplyReadiness(){
+    var el=document.getElementById('supplyReady');
+    if(!el) return;
+    var n=recentSupplyItems().length;
+    var btn=document.getElementById('adminSupplyBtn');
+    if(n){
+      el.textContent='Свежего за сутки: '+n+' поз. — есть что объявить';
+      btn.style.opacity='';
+    } else {
+      el.textContent='За сутки ничего нового не добавлено и не пополнено';
+      btn.style.opacity='.5';
+    }
+  }
+  document.getElementById('adminSupplyBtn').onclick=function(){
+    var text=buildSupplyText();
+    if(!text){
+      toast('За сутки нет новых поступлений — объявлять нечего');
+      return;
+    }
+    if(Object.keys(pendingStock).length){
+      toast('Сначала сохрани приход, потом объявляй');
+      return;
+    }
+    document.getElementById('supplyText').value=text;
+    document.getElementById('supplyAudience').textContent='всем '+'пользователям бота';
+    showAdminStep('adminSupplyView');
+  };
+  document.getElementById('adminSupplyBack').onclick=function(){ showAdminStep('adminListView'); };
+  document.getElementById('supplyRefillBtn').onclick=function(){
+    var t=buildSupplyText();
+    if(!t){ toast('Свежих поступлений за сутки нет'); return; }
+    document.getElementById('supplyText').value=t;
+    toast('Текст обновлён');
+  };
+  document.getElementById('supplySendBtn').onclick=function(){
+    var text=document.getElementById('supplyText').value.trim();
+    if(!text){ toast('Текст пустой'); return; }
+    if(!confirm('Разослать это сообщение всем пользователям бота?')) return;
+    sendAdminAction('broadcast', {text:text});
+  };
+
+
+  // === Пошаговое добавление/редактирование товара ===
+  // Шаги зависят от типа: у жидкости спрашиваем линейку и вкус,
+  // у картриджа — вид, у одноразки — затяжки. Меньше пустых полей.
+  var TYPES=[
+    {cat:'Жидкости',  em:'🧪', kindQ:'Какая линейка?',   kindLabel:'Линейка жидкости',
+     nameQ:'Какой вкус?',     nameLabel:'Название вкуса',
+     kinds:['Анархия','CS','Злая монашка','Самоубийца'], groupHint:true},
+    {cat:'Одноразки', em:'💨', kindQ:'Сколько затяжек?', kindLabel:'Количество затяжек',
+     nameQ:'Какой вкус?',     nameLabel:'Название вкуса',
+     kinds:['6000','9000','12000','16000'], groupHint:true},
+    {cat:'Картриджы', em:'🔌', kindQ:'Какой вид?',       kindLabel:'Вид картриджа',
+     nameQ:'Название',        nameLabel:'Название',
+     kinds:['На испарителе','На картридже','Сменный'], groupHint:true},
+    {cat:'Снюс',      em:'🥫', kindQ:'Какая крепость?',  kindLabel:'Крепость',
+     nameQ:'Какой вкус?',     nameLabel:'Название вкуса',
+     kinds:['Лёгкий','Средний','Крепкий'], groupHint:false},
+    {cat:'Подики',    em:'🔋', kindQ:'Какой вид?',       kindLabel:'Вид',
+     nameQ:'Название',        nameLabel:'Название',
+     kinds:['Устройство','Картридж'], groupHint:true},
+    {cat:'Никобустер',em:'⚗️', kindQ:'Какой?',          kindLabel:'Тип',
+     nameQ:'Название',        nameLabel:'Название',
+     kinds:['Никобустер'], groupHint:false},
+    {cat:'Другое',    em:'📦', kindQ:'Подкатегория',     kindLabel:'Подкатегория',
+     nameQ:'Название',        nameLabel:'Название',
+     kinds:[], groupHint:false}
+  ];
+  var WIZ_STEPS=['type','kind','name','price','photo'];
+  var wizIndex=0;
+  var wizType=null;
+
+  function typeByCat(cat){
+    for(var i=0;i<TYPES.length;i++){ if(TYPES[i].cat===cat) return TYPES[i]; }
+    return null;
+  }
+  function showWizStep(i){
+    wizIndex=Math.max(0, Math.min(WIZ_STEPS.length-1, i));
+    var name=WIZ_STEPS[wizIndex];
+    Array.prototype.forEach.call(document.querySelectorAll('.wiz-step'),function(el){
+      el.style.display = el.dataset.step===name ? '' : 'none';
+    });
+    document.getElementById('wizSteps').innerHTML =
+      WIZ_STEPS.map(function(_,k){ return '<i class="'+(k<=wizIndex?'done':'')+'"></i>'; }).join('');
+    var last = wizIndex===WIZ_STEPS.length-1;
+    document.getElementById('wizNext').style.display = last ? 'none' : '';
+    document.getElementById('adminSaveBtn').style.display = last ? '' : 'none';
+    document.getElementById('wizBack').style.display = wizIndex===0 ? 'none' : '';
+    document.getElementById('adminDeleteBtn').style.display = (last && editingId) ? '' : 'none';
+    document.getElementById('adminHeadTitle').textContent =
+      (editingId ? 'Правка: ' : 'Новый товар: ') + (wizIndex+1) + '/' + WIZ_STEPS.length;
+    // Линейку вводят на шаге раньше, поэтому решаем про обложку здесь
+    if(name==='photo') refreshCoverBlock();
+    adminSheet.scrollTop = 0;
+  }
+  function renderTypeGrid(){
+    document.getElementById('typeGrid').innerHTML = TYPES.map(function(t){
+      return '<button type="button" data-type="'+esc(t.cat)+'"'+
+             (wizType && wizType.cat===t.cat ? ' class="active"' : '')+'>'+
+             '<span class="em">'+t.em+'</span><span>'+esc(t.cat)+'</span></button>';
+    }).join('');
+    Array.prototype.forEach.call(document.getElementById('typeGrid').querySelectorAll('[data-type]'),function(b){
+      b.onclick=function(){
+        wizType=typeByCat(b.dataset.type);
+        renderTypeGrid();
+        renderKindStep();
+        haptic('light');
+        showWizStep(1);   // выбрал тип — сразу дальше, лишний тап не нужен
+      };
+    });
+  }
+  function renderKindStep(){
+    if(!wizType) return;
+    document.getElementById('kindQuestion').textContent=wizType.kindQ;
+    document.getElementById('kindOwnLabel').textContent=wizType.kindLabel;
+    var cur=document.getElementById('f_subcategory').value.trim();
+    // К заранее заданным вариантам добавляем то, что уже есть в таблице
+    var fromData=products.filter(function(p){ return p.category===wizType.cat; })
+      .map(function(p){ return p.subcategory; })
+      .filter(function(s,i,a){ return s && a.indexOf(s)===i; });
+    var kinds=wizType.kinds.concat(fromData).filter(function(s,i,a){ return a.indexOf(s)===i; });
+    document.getElementById('kindGrid').innerHTML = kinds.map(function(k){
+      return '<button type="button" data-kind="'+esc(k)+'"'+(k===cur?' class="active"':'')+'>'+
+             '<span>'+esc(k)+'</span></button>';
+    }).join('');
+    Array.prototype.forEach.call(document.getElementById('kindGrid').querySelectorAll('[data-kind]'),function(b){
+      b.onclick=function(){
+        document.getElementById('f_subcategory').value=b.dataset.kind;
+        renderKindStep();
+        haptic('light');
+      };
+    });
+    document.getElementById('nameQuestion').textContent=wizType.nameQ;
+    document.getElementById('nameLabel').textContent=wizType.nameLabel;
+    // Подсказки линеек берём из того, что уже заведено
+    document.getElementById('groupList').innerHTML =
+      products.map(function(p){ return p.group; })
+        .filter(function(g,i,a){ return g && a.indexOf(g)===i; })
+        .map(function(g){ return '<option value="'+esc(g)+'">'; }).join('');
+  }
+
+  function setSeg(segId, hiddenId, value){
+    var seg=document.getElementById(segId);
+    Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){
+      b.classList.toggle('active', b.dataset.val===value);
+    });
+    document.getElementById(hiddenId).value=value;
+  }
+  function bindSeg(segId, hiddenId){
+    var seg=document.getElementById(segId);
+    Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){
+      b.onclick=function(){ setSeg(segId, hiddenId, b.dataset.val); haptic('light'); };
+    });
+  }
+  bindSeg('segStock','f_instock');
+  bindSeg('segBadge','f_badge');
+
+  document.getElementById('wizNext').onclick=function(){
+    var step=WIZ_STEPS[wizIndex];
+    if(step==='type' && !wizType){ toast('Выбери, что добавляем'); return; }
+    if(step==='name' && !document.getElementById('f_name').value.trim()){
+      toast('Без названия никак'); return;
+    }
+    if(step==='price' && !document.getElementById('f_price').value.trim()){
+      toast('Укажи цену'); return;
+    }
+    showWizStep(wizIndex+1);
+  };
+  document.getElementById('wizBack').onclick=function(){ showWizStep(wizIndex-1); };
+
+  // --- фото ---
+  // Ключ imgbb во фронтенде не живёт: config.js уезжает на GitHub Pages и
+  // читается любым посетителем. Загружает фото бот («📷 Фото товара»), ключ
+  // лежит только в его .env; сюда админ вставляет готовую ссылку.
+  function setPreview(boxId, url, emptyText){
+    var el=document.getElementById(boxId);
+    el.innerHTML = url ? '<img src="'+esc(url)+'" alt="">' : emptyText;
+  }
+  function setPhotoPreview(url){ setPreview('photoPreview', url, 'Фото пока нет'); }
+  function setCoverPreview(url){ setPreview('coverPreview', url, 'Обложки нет'); }
+
+  // Превью обновляется прямо по мере ввода ссылки — видно, что вставили верную
+  function wirePhotoField(fieldId, setPreviewFn){
+    document.getElementById(fieldId).addEventListener('input', function(e){
+      setPreviewFn(e.target.value.trim());
+    });
+  }
+  wirePhotoField('f_image', setPhotoPreview);
+  wirePhotoField('f_cover', setCoverPreview);
+
+  // Обложку спрашиваем, только когда линейка уже не пустая: у первого товара
+  // обложкой становится его собственное фото, спрашивать нечего.
+  function refreshCoverBlock(){
+    var group=document.getElementById('f_group').value.trim();
+    var siblings=group ? products.filter(function(p){
+      return p.group===group && p.id!==editingId;
+    }) : [];
+    var show=siblings.length>0;
+    document.getElementById('coverBlock').style.display = show ? '' : 'none';
+    if(show) document.getElementById('coverGroupName').textContent=group;
+  }
+
+  // Поля мастера тоже держим над клавиатурой
+  ['f_name','f_group','f_desc','f_price','f_stock','f_subcategory','f_image'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('focus', function(){ keepAboveKeyboard(el); });
+  });
+
+  function openAdminForm(id){
+    editingId=id;
+    var f={name:'',category:'',subcategory:'',price:'',desc:'',badge:'',icon:'',image:'',group:'',inStock:'TRUE',stock:'',cover:''};
+    if(id){
+      var p=products.find(function(p){ return p.id===id; });
+      // В форму кладём исходную ссылку, а не прокси-адрес картинки
+      if(p){ f={name:p.name,category:p.category,subcategory:p.subcategory,price:p.price,
+                desc:p.tag,badge:p.badge==='new'?'NEW':(p.badge==='hit'?'ХИТ':''),
+                icon:p.icon,image:p.rawImage||'',group:p.group||'',
+                inStock:p.inStock?'TRUE':'FALSE',
+                stock:(effStock(p)===null?'':effStock(p)),
+                cover:p.cover||''}; }
+    }
+    wizType = typeByCat(f.category) || (f.category ? {cat:f.category, em:'📦', kindQ:'Подкатегория',
+      kindLabel:'Подкатегория', nameQ:'Название', nameLabel:'Название', kinds:[]} : null);
+
+    document.getElementById('f_name').value=f.name;
+    document.getElementById('f_group').value=f.group;
+    document.getElementById('f_subcategory').value=f.subcategory;
+    document.getElementById('f_price').value=f.price;
+    document.getElementById('f_desc').value=f.desc;
+    document.getElementById('f_icon').value=f.icon;
+    document.getElementById('f_image').value=f.image;
+    document.getElementById('f_stock').value=f.stock;
+    setSeg('segStock','f_instock', f.inStock);
+    setSeg('segBadge','f_badge', f.badge);
+    setPhotoPreview(f.image);
+    document.getElementById('photoStatus').textContent = f.image ? 'Фото уже есть' : 'Можно пропустить и добавить позже';
+    document.getElementById('f_cover').value=f.cover;
+    setCoverPreview(f.cover);
+    document.getElementById('coverStatus').textContent = f.cover
+      ? 'Обложка уже задана' : 'Пусто — на главной останется фото первого вкуса';
+
+    renderTypeGrid();
+    renderKindStep();
+    showAdminStep('adminFormView');
+    // При правке сразу к сути — тип уже известен
+    showWizStep(id ? 2 : 0);
+  }
+
+  document.getElementById('adminAddBtn').onclick=function(){ openAdminForm(null); };
+
+  document.getElementById('adminSaveBtn').onclick=function(){
+    var payload={
+      name:document.getElementById('f_name').value.trim(),
+      category:wizType ? wizType.cat : '',
+      subcategory:document.getElementById('f_subcategory').value.trim(),
+      group:document.getElementById('f_group').value.trim(),
+      price:document.getElementById('f_price').value.trim(),
+      desc:document.getElementById('f_desc').value.trim(),
+      badge:document.getElementById('f_badge').value.trim(),
+      icon:document.getElementById('f_icon').value.trim() || (wizType ? wizType.em : '📦'),
+      image:document.getElementById('f_image').value.trim(),
+      cover:document.getElementById('f_cover').value.trim(),
+      stock:document.getElementById('f_stock').value.trim(),
+      inStock:document.getElementById('f_instock').value
+    };
+    // Количество главнее переключателя: задал число — оно и решает наличие
+    if(payload.stock!==''){
+      payload.inStock = parseInt(payload.stock,10)>0 ? 'TRUE' : 'FALSE';
+    }
+    if(!payload.name || !payload.price){ toast('Нужны название и цена'); return; }
+    if(editingId){
+      payload.id=editingId;
+      sendAdminAction('admin_edit', payload);
+    } else {
+      sendAdminAction('admin_add', payload);
+    }
+  };
+  document.getElementById('adminDeleteBtn').onclick=function(){
+    if(!editingId) return;
+    if(!confirm('Удалить товар?')) return;
+    sendAdminAction('admin_delete', {id:editingId});
+  };
+
+  function sendAdminAction(type, payload){
+    var action=Object.assign({type:type}, payload);
+    var inTelegram=inRealTelegram;
+    try{
+      if(inTelegram && tg.sendData){
+        tg.sendData(JSON.stringify(action));
+      } else {
+        toast('Действие отправится боту, когда открыто из Telegram');
+      }
+    }catch(e){
+      toast('Действие отправится боту, когда открыто из Telegram');
+    }
+    haptic('medium');
+  }
+
+  // --- initial render ---
+  // initDataUnsafe.user тоже пуст для keyboard-кнопки, поэтому админку
+  // показываем по параметру в ссылке (?admin=1), которую бот даёт только
+  // тебе через admin_kb(). Настоящая проверка прав — всё равно на боте.
+  var isAdmin = new URLSearchParams(location.search).get('admin') === '1';
+  if(isAdmin){ document.getElementById('adminBtnWrap').style.display=''; }
+  loadProducts();
+  loadReviews();
+  loadBalance();
+  updateCartBar();
+})();
+</script>
+</body>
 </html>
