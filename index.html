@@ -1079,10 +1079,6 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
   var MY_UID = new URLSearchParams(location.search).get('uid')
             || (TG_USER && TG_USER.id ? String(TG_USER.id) : '');
   var MY_NAME = (TG_USER && TG_USER.first_name) || 'Аноним';
-  // Обратная сторона: sendData есть только у запуска с клавиатурной кнопки,
-  // то есть ровно там, где initData пуст. Из меню каталог смотреть можно,
-  // а оформить заказ — нет, и сказать об этом надо сразу, а не после попытки.
-  var CAN_ORDER = inRealTelegram && !(tg.initData && tg.initData.length);
   var myBalance = 0;
   var bonusToUse = 0;
   var reviews = [];
@@ -1326,7 +1322,13 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
   // Открыть товар, на который вела кнопка из канала (?p=<id>).
   // Срабатывает один раз: если человек закрыл карточку и пошёл смотреть
   // магазин, повторная загрузка списка не должна выкидывать его обратно.
-  var deepLinkId = new URLSearchParams(location.search).get('p') || '';
+  // Товар приходит двумя путями: ?p=<id> — когда магазин открыт кнопкой из
+  // чата с ботом; start_param — когда открыт прямой ссылкой t.me/<bot>/shop
+  // из поста канала (там ?startapp=p<id>, и Telegram кладёт «p<id>» сюда).
+  var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+  var deepLinkId = new URLSearchParams(location.search).get('p')
+                || (/^p\d+$/.test(startParam) ? startParam.slice(1) : '')
+                || '';
   function openDeepLinked(){
     if(!deepLinkId) return;
     var id=+deepLinkId;
@@ -2281,10 +2283,13 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
       meet_time:document.getElementById('orderTime').value.trim(),
       contact:document.getElementById('orderContact').value.trim()
     };
-    if(!CAN_ORDER){
-      showOrderProblem('Отсюда заказ не оформить: магазин открыт кнопкой меню. Закрой его и открой кнопкой «🛒 Открыть магазин» внизу чата с ботом — там оформление работает.');
-      return;
-    }
+    // Транспорта два, и выбор не косметический.
+    // sendData — мгновенный, но Telegram даёт его ТОЛЬКО приложению, открытому
+    // клавиатурной кнопкой из чата. У открытого прямой ссылкой из канала
+    // (t.me/<bot>/shop) и кнопкой меню его нет вовсе. Раньше здесь стоял отказ
+    // «открой другой кнопкой» — человек проходил весь путь до оформления и
+    // упирался в стену. Теперь во втором случае заказ уходит в Apps Script, а
+    // бот забирает его из листа orders; заказать можно откуда угодно.
     var sent=false;
     try{
       if(inRealTelegram && tg.sendData){
@@ -2293,17 +2298,36 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
       }
     }catch(e){}
 
-    if(!sent){
-      showOrderProblem('Заказ уходит боту только из Telegram. Открой магазин из чата с ботом.');
+    if(sent){
+      // Удачная отправка закрывает приложение мгновенно. Если через 2 секунды мы
+      // всё ещё здесь — данные не ушли, и молчать об этом нельзя.
+      setTimeout(function(){
+        showOrderProblem('Заказ не отправился. Закрой магазин и открой его кнопкой «🛒 Открыть магазин» в чате с ботом, затем оформи заказ заново.');
+      }, 2000);
+      haptic('medium');
       return;
     }
 
-    // Удачная отправка закрывает приложение мгновенно. Если через 2 секунды мы
-    // всё ещё здесь — данные не ушли, и молчать об этом нельзя.
-    setTimeout(function(){
-      showOrderProblem('Заказ не отправился. Закрой магазин и открой его кнопкой «🛒 Открыть магазин» в чате с ботом, затем оформи заказ заново.');
-    }, 2000);
+    // Запасной путь. Без user_id бот не поймёт, кому отвечать и кому начислять
+    // бонусы, а initData у запуска прямой ссылкой заполнен — значит id есть.
+    if(!MY_UID){
+      showOrderProblem('Не удалось определить твой аккаунт Telegram. Открой магазин кнопкой «🛒 Открыть магазин» в чате с ботом.');
+      return;
+    }
+    order.action='order';
+    order.user_id=MY_UID;
+    order.name=MY_NAME;
+    if(!sendToGAS(order)){
+      showOrderProblem('Заказ не отправился. Открой магазин кнопкой «🛒 Открыть магазин» в чате с ботом и попробуй ещё раз.');
+      return;
+    }
+    // Ответ Apps Script прочитать нельзя (no-cors), поэтому подтверждаем на
+    // месте, а настоящее подтверждение с деталями встречи придёт от бота в чат.
+    cart={};
+    updateCartBar();
+    closeSheet();
     haptic('medium');
+    toast('Заказ отправлен — бот напишет в чат');
   }
 
   function showOrderProblem(msg){
