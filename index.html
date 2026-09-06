@@ -2262,10 +2262,12 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
   document.getElementById('useBonusCheck').onchange=renderOrderTotal;
 
   // --- выбор времени встречи ---
-  // Часы работы. Слоты строятся отсюда, поэтому поменять расписание — это
-  // поменять две цифры, а не переписывать разметку.
-  var WORK_FROM = 10;      // с 10:00
-  var WORK_TO = 22;        // последний слот в 22:00
+  // Часов работы у магазина нет: клиент называет любое время, а подходит оно
+  // или нет — решает админ, подтверждая заказ или отклоняя его с причиной.
+  // Прятать слоты «неудобного» времени в витрине значит терять заказы, о
+  // которых он бы и так договорился.
+  var WORK_FROM = 0;
+  var WORK_TO = 23;
   var SLOT_STEP_MIN = 30;  // шаг между слотами
   var SLOT_LEAD_MIN = 40;  // ближайший слот не раньше чем через столько минут:
                            // и товар собрать, и дойти до места
@@ -2279,7 +2281,6 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
     var earliest=new Date(now.getTime() + SLOT_LEAD_MIN*60000);
     for(var h=WORK_FROM; h<=WORK_TO; h++){
       for(var m=0; m<60; m+=SLOT_STEP_MIN){
-        if(h===WORK_TO && m>0) break;   // ровно до WORK_TO:00 включительно
         if(day==='today'){
           var t=new Date();
           t.setHours(h,m,0,0);
