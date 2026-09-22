@@ -1,0 +1,90 @@
+/* Заставка при открытии.
+   Часть витрины Chipatap. Подключается последней: она перекрывает всё
+   остальное и ни от какого файла выше по каскаду не зависит.
+
+   Гаснет сама, анимацией, а не по команде скрипта: если модуль витрины не
+   доехал (в Telegram это обычное дело на плохой связи), заставка всё равно
+   уйдёт и магазин откроется. Скрипт только убирает узел из DOM после. */
+
+#splash{
+  position:fixed; inset:0; z-index:200;
+  background:#fcc101;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  overflow:hidden;
+  animation:splash-out .5s ease 1.45s forwards;
+}
+/* visibility выключается отдельным кадром в самом конце: включи её в общий
+   переход — и заставка исчезла бы мгновенно, ещё до затухания. */
+@keyframes splash-out{
+  0%{ opacity:1; visibility:visible; }
+  99%{ opacity:0; visibility:visible; }
+  100%{ opacity:0; visibility:hidden; }
+}
+
+/* Знак проявляется слева направо: шторка едет по кадру, а само облако
+   чуть подтягивается следом — от этого движение читается как взмах, а не
+   как появление картинки. */
+.splash-logo{
+  width:min(58vw,230px); aspect-ratio:232/158;
+  background:url("../img/cloud.png") center/contain no-repeat;
+  clip-path:inset(0 100% 0 0);
+  animation:splash-wipe .8s cubic-bezier(.2,.85,.3,1) .12s forwards;
+  filter:drop-shadow(0 6px 14px rgba(120,80,0,.28));
+}
+@keyframes splash-wipe{
+  from{ clip-path:inset(0 100% 0 0); transform:translateX(-14px); }
+  to{   clip-path:inset(0 0 0 0);    transform:translateX(0); }
+}
+
+/* Дым идёт от облака вверх: коробка с клубами стоит над знаком, клубы
+   начинаются чуть ниже её края — то есть у самой кромки облака — и
+   всплывают, расходясь в стороны. Каждый со своей задержкой и своим сносом:
+   три одинаковых шара поднимаются строем и читаются как загрузка, а не дым. */
+.splash-smoke{
+  position:absolute; top:50%; left:50%;
+  width:min(58vw,230px); aspect-ratio:1;
+  transform:translate(-50%,-112%);
+  pointer-events:none;
+}
+.splash-smoke i{
+  position:absolute; left:50%; bottom:-6%;
+  width:38%; aspect-ratio:1; border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.95), rgba(255,255,255,0) 68%);
+  filter:blur(6px);
+  opacity:0;
+  animation:splash-puff 2.1s ease-out infinite;
+}
+.splash-smoke i:nth-child(1){ animation-delay:.1s;  --drift:-40px; }
+.splash-smoke i:nth-child(2){ animation-delay:.45s; --drift:28px;  }
+.splash-smoke i:nth-child(3){ animation-delay:.8s;  --drift:-12px; }
+.splash-smoke i:nth-child(4){ animation-delay:1.15s; --drift:46px; }
+@keyframes splash-puff{
+  0%{   opacity:0;   transform:translate(-50%,0) scale(.45); }
+  20%{  opacity:.85; }
+  100%{ opacity:0;   transform:translate(calc(-50% + var(--drift)),-170px) scale(2.1); }
+}
+
+.splash-word{
+  margin-top:18px;
+  font-size:30px; font-weight:700; color:#fff;
+  text-shadow:2px 2px 0 rgba(90,60,0,.25);
+  opacity:0; animation:splash-rise .45s ease .5s forwards;
+}
+.splash-sub{
+  margin-top:6px;
+  font-size:10px; font-weight:400; letter-spacing:2px; text-transform:uppercase;
+  color:rgba(255,255,255,.92);
+  opacity:0; animation:splash-rise .45s ease .68s forwards;
+}
+@keyframes splash-rise{
+  from{ opacity:0; transform:translateY(8px); }
+  to{   opacity:1; transform:translateY(0); }
+}
+
+/* Просили не двигать — не двигаем. Здесь именно display:none, а не
+   выключенная анимация: в base.css движение глушится через
+   animation:none !important, и заставка, которая гаснет анимацией,
+   осталась бы висеть поверх магазина навсегда. */
+@media (prefers-reduced-motion: reduce){
+  #splash{ display:none; }
+}

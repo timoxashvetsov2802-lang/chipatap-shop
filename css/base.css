@@ -1,0 +1,53 @@
+/* Сброс, типографика, фуллскрин.
+   Часть витрины Chipatap. Порядок подключения файлов значим: каскад рассчитан на
+   tokens → base → layout → catalog → sheets → admin, как было в исходном одном файле. */
+
+/* Шрифт — Monocraft: пиксельный, срисован со шрифта интерфейса Minecraft.
+   Лежит рядом в fonts/ (лицензия OFL, см. fonts/LICENSE-Monocraft.txt), а не
+   тянется с чужого CDN: часть доменов в Telegram режется, а шрифт, который не
+   доехал, меняет вёрстку целиком. Из 1578 знаков оставлены только нужные —
+   кириллица, латиница, цифры, ₽, ★ и пунктуация: вместе 7 КБ вместо 550.
+   Начертания настоящие, а не подделанные браузером: синтетический жирный
+   размазывает пиксельную сетку. */
+@font-face{
+  font-family:'Monocraft';
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  src:url('../fonts/monocraft-regular.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Monocraft';
+  font-style:normal;
+  font-weight:700;
+  font-display:swap;
+  src:url('../fonts/monocraft-bold.woff2') format('woff2');
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:'Monocraft',ui-monospace,"Segoe UI Mono",Menlo,Consolas,monospace;
+  background:var(--bg);
+  color:var(--text);
+  /* Сглаживание выключено намеренно: пиксельный шрифт от него мылится,
+     а весь смысл — в чётких квадратных пикселях */
+  -webkit-font-smoothing:none;
+  font-smooth:never;
+}
+button,input{font-family:inherit; color:inherit;}
+/* Быстрый двойной тап не должен включать зум — от него страница подпрыгивала */
+button, .card, .flavor-card, .qty, .ctl-slot, .admin-row{ touch-action:manipulation; }
+button:focus-visible, input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important; animation:none !important;}
+}
+
+/* --- фуллскрин: шапка не должна лезть под часы и кнопки Telegram --- */
+:root{ --safe-top:0px; }
+.app{ padding-top:var(--safe-top); }
+/* Места под кнопки Telegram справа не резервируем: вертикально шапку уже
+   опускает --safe-top, а отступ в 96px только утаскивал бонусы и смену
+   темы от правого края к середине */
+/* Свои кнопки закрытия прячем, когда работает родная кнопка «Назад» Telegram */
+.tg-native-back [data-native-hide]{ display:none !important; }

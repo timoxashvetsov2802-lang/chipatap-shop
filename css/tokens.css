@@ -1,0 +1,85 @@
+/* Цвета и темы.
+   Часть витрины Chipatap. Порядок подключения файлов значим: каскад рассчитан на
+   tokens → base → layout → catalog → sheets → admin, как было в исходном одном файле. */
+
+/* Акцент — фирменный жёлтый с облака Chipatap (#fcc101 — заливка знака).
+   Он светлый, поэтому белый текст на нём не читается: на заливке всегда
+   --on-accent (почти чёрный), а текстом акцент берётся только как
+   --accent-ink, он заметно темнее. Нейтральные цвета тёплые: холодный серый
+   рядом с жёлтым и кремовым отдаёт в грязь. */
+:root{
+  --radius-lg:20px;
+  --radius-md:16px;
+  --radius-sm:12px;
+}
+html[data-theme="light"]{
+  --bg:#fff8e6;
+  --card:#ffffff;
+  --thumb:#f3e8cc;
+  --thumb-line:#fbf0da;
+  --text:#14120b;
+  /* Замеренный на макете хинт (#a99481) на кремовом даёт контраст 2.4:1 —
+     мелкий текст под ним не читается. Тон тот же, тёплый, но темнее. */
+  --hint:#8a7663;
+  --separator:#f1e7d0;
+  --shadow:0 2px 12px rgba(58,44,8,0.07);
+  --sheet-bg:#ffffff;
+  --overlay:rgba(26,20,6,0.55);
+  --accent:#fcc101;
+  --on-accent:#14120b;
+  --accent-ink:#8a6600;
+  --accent-soft:rgba(252,193,1,0.18);
+  --accent-glow:rgba(252,193,1,0.40);
+  /* Синий с макета: баланс в шапке и бейдж «NEW» */
+  --info:#2c4c8b;
+  --on-info:#ffffff;
+  /* Бейджи держат собственные цвета: «ХИТ» — чёрная плашка с жёлтой надписью,
+     а --hit остаётся значением «внимание» (звёзды рейтинга, остаток на исходе) */
+  --badge-hit-bg:#12100a;
+  --badge-hit-ink:#fcc101;
+  --badge-new-bg:#2c4c8b;
+  --badge-new-ink:#ffffff;
+  --pill-muted:#d8d3c2;
+  --on-pill-muted:#3a3627;
+  --bar:#11150f;
+  --on-bar:#ffffff;
+  --hit:#d98700;
+  --new:#2fa37a;
+  --danger:#e02e1f;
+}
+/* Тёмная снята с дизайн-системы Т-Банка (Taiga UI, styles/mixins/theme/palette.less):
+   основа #222, ступени высоты #292929 / #2f2f2f / #373737, границы белым на 14%,
+   текст белым 100 / 72 / 60%. Там не чёрный, а тёплый графит со ступенями: карточка
+   отделяется от фона сама, без единой рамки. Жёлтый на графите берём светлее
+   фирменного — #fcc101 на тёмном гаснет и уходит в охру. */
+html[data-theme="dark"]{
+  --bg:#222222;
+  --card:#292929;
+  --thumb:#2f2f2f;
+  --thumb-line:#373737;
+  --text:#ffffff;
+  --hint:rgba(255,255,255,0.6);
+  --separator:rgba(255,255,255,0.14);
+  --shadow:0 2px 14px rgba(0,0,0,0.45);
+  --sheet-bg:#2f2f2f;
+  --overlay:rgba(0,0,0,0.75);
+  --accent:#fed644;
+  --on-accent:#1a1608;
+  --accent-ink:#fed644;
+  --accent-soft:rgba(254,214,68,0.16);
+  --accent-glow:rgba(254,214,68,0.30);
+  --info:#6788ff;
+  --on-info:#10142a;
+  /* На графите чёрная плашка «ХИТ» пропадает — здесь она жёлтая с тёмной надписью */
+  --badge-hit-bg:#fed644;
+  --badge-hit-ink:#1a1608;
+  --badge-new-bg:#4a68d8;
+  --badge-new-ink:#ffffff;
+  --pill-muted:rgba(255,255,255,0.24);
+  --on-pill-muted:#ffffff;
+  --bar:#101010;
+  --on-bar:#ffffff;
+  --hit:#ffc700;
+  --new:#4ac99b;
+  --danger:#ff4d4d;
+}

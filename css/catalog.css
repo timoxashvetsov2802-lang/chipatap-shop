@@ -1,0 +1,163 @@
+/* Витрина: сетка, карточки, кнопка корзины.
+   Часть витрины Chipatap. Порядок подключения файлов значим: каскад рассчитан на
+   tokens → base → layout → catalog → sheets → admin, как было в исходном одном файле. */
+
+.grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 16px 16px;
+  /* grid-auto-rows:1fr убран: он растянул бы и строку с заголовком раздела
+     до высоты карточки. Карточки и без него одной высоты — внутри всё
+     фиксировано: имя в две строки, строка описания, строка рейтинга */
+}
+/* Миниатюра лежит внутри карточки с полями, а не встык к её краям: так
+   карточка читается как подложка, а не как обрезанная фотография. */
+.card{
+  background:var(--card); border-radius:var(--radius-lg); overflow:hidden;
+  box-shadow:var(--shadow); display:flex; flex-direction:column; height:100%;
+  position:relative; transition:transform .15s; padding:8px;
+}
+.card:active{transform:scale(0.97);}
+/* Кончившийся товар — серая пилюля поверх миниатюры вместо глухой заливки:
+   товар видно, а не только надпись. Вуаль под пилюлей цветом карточки:
+   в светлой теме она осветляет фото, в тёмной гасит. */
+.card.out .thumb::before{
+  content:""; position:absolute; inset:0; z-index:2; background:var(--card); opacity:.45;
+}
+.card.out .thumb::after{
+  content:"Нет в наличии";
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:3;
+  background:var(--pill-muted); color:var(--on-pill-muted);
+  padding:6px 12px; border-radius:999px;
+  font-size:11px; font-weight:700; white-space:nowrap;
+}
+/* Диагональная штриховка — фон пустой миниатюры. Фото ложится поверх и
+   закрывает её целиком, так что полосы видно только там, где фото нет. */
+.thumb{
+  position:relative; aspect-ratio:1/1;
+  background-color:var(--thumb);
+  background-image:repeating-linear-gradient(45deg, var(--thumb-line) 0 9px, transparent 9px 18px);
+  border-radius:var(--radius-md); overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  font-size:38px;
+}
+/* Заглушка вместо фото — первая буква названия. Эмодзи из таблицы
+   рисовались чужим цветным шрифтом и на витрине складывались в случайный
+   набор картинок; буква молчит и не спорит с товаром. Кегль в em: каждый
+   контейнер уже задал свой размер под эмодзи, и буква масштабируется вместе с ним. */
+.ph{
+  font-size:1.5em; font-weight:700; letter-spacing:-.03em; line-height:1;
+  color:var(--hint); opacity:.5; user-select:none;
+}
+/* Бейджи держат свои цвета, а не --new/--hit: те остались значением
+   «в наличии» и «внимание» (звёзды, остаток на исходе) и в бейджах
+   читались бы мимо макета. */
+.badge{
+  position:absolute; top:8px; left:8px; z-index:4;
+  padding:4px 9px; border-radius:999px;
+  font-size:10px; font-weight:700; letter-spacing:0;
+}
+.badge.new{background:var(--badge-new-bg); color:var(--badge-new-ink);}
+.badge.hit{background:var(--badge-hit-bg); color:var(--badge-hit-ink);}
+.info{padding:10px 4px 2px; display:flex; flex-direction:column; gap:3px; flex:1;}
+/* Высоты строк заданы жёстко, а не по содержимому: иначе название в две
+   строки сдвигало вниз рейтинг, вкусы и цену, и соседние карточки шли
+   вразнобой. Теперь каждая строка занимает своё место всегда */
+.name{
+  font-size:13px; font-weight:700; line-height:1.3;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  height:2.5em;   /* ровно две строки: 1.25 × 2 */
+}
+.tag{
+  font-size:11px; color:var(--hint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  height:1.35em;  /* строка держится, даже когда описания нет */
+}
+/* Рейтинг и наличие — в одну строку: по отдельности каждый занимал свой ряд
+   и карточка распухала на пустом месте */
+.meta-line{
+  display:flex; align-items:center; gap:8px; font-size:12px; min-height:16px;
+}
+.meta-line .rating{ display:flex; align-items:center; gap:3px; font-weight:700; }
+.meta-line .rating .star{ color:var(--hit); }
+/* Цена и кнопка прижаты к низу карточки, поэтому ряды выравниваются */
+.row-bottom{
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  margin-top:auto; padding-top:4px; flex-wrap:nowrap; min-height:32px;
+}
+.price{
+  font-size:15px; font-weight:700; letter-spacing:0; white-space:nowrap; flex:0 0 auto;
+}
+/* Кнопка добавления — скруглённый квадрат, как на макете: круг рядом с
+   квадратной миниатюрой выбивался из ритма карточки. */
+.add-btn{
+  width:34px;height:34px;border-radius:11px;background:var(--accent);
+  border:none;color:var(--on-accent);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  flex-shrink:0; font-size:19px; font-weight:700; line-height:1; transition:transform .15s;
+}
+.add-btn:active{transform:scale(0.85);}
+.qty{
+  display:flex; align-items:center; gap:1px; background:var(--bg);
+  border-radius:12px; padding:2px; flex-shrink:0; height:34px; box-sizing:border-box;
+}
+.qty button{
+  width:30px;height:30px;border-radius:9px;border:none;background:var(--card);
+  color:var(--accent-ink); font-size:14px; font-weight:700; cursor:pointer;
+  display:flex;align-items:center;justify-content:center; flex-shrink:0;
+}
+.qty span{font-size:13px; font-weight:700; min-width:12px; text-align:center;}
+.qty-big{ width:100%; height:52px; justify-content:space-between; padding:4px 6px; border-radius:16px; }
+.qty-big button{ width:44px; height:44px; border-radius:12px; font-size:22px; }
+.qty-big span{ font-size:18px; min-width:40px; }
+.empty-state{
+  grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--hint); font-size:14px;
+  line-height:1.5;
+}
+.empty-state b{ display:block; color:var(--text); font-size:15px; margin-bottom:4px; }
+
+/* Скелетоны на время первой загрузки. Товары едут из опубликованной
+   Google-таблицы, и на мобильном интернете это секунда-две пустого экрана:
+   непонятно, грузится магазин или сломался. Размеры повторяют настоящую
+   карточку, чтобы в момент появления товаров сетка не дёргалась. */
+.skeleton{
+  background:var(--card); border-radius:var(--radius-lg); overflow:hidden;
+  box-shadow:var(--shadow); display:flex; flex-direction:column; padding:8px;
+}
+.skeleton .sk-thumb{ aspect-ratio:1/1; border-radius:var(--radius-md); }
+.skeleton .sk-body{ padding:10px 4px 2px; display:flex; flex-direction:column; gap:7px; }
+.skeleton .sk-line{ height:10px; border-radius:5px; }
+.skeleton .sk-line.short{ width:55%; }
+.skeleton .sk-thumb, .skeleton .sk-line{
+  background:linear-gradient(90deg, var(--thumb) 25%, var(--separator) 50%, var(--thumb) 75%);
+  background-size:200% 100%;
+  animation:sk-shimmer 1.3s linear infinite;
+}
+@keyframes sk-shimmer{ to{ background-position:-200% 0; } }
+/* Заголовок раздела на витрине — во всю ширину сетки, поверх обеих колонок */
+.cat-head{
+  grid-column:1/-1; font-size:17px; font-weight:700; letter-spacing:0; color:var(--text);
+  padding:14px 2px 2px;
+}
+.cat-head:first-child{ padding-top:2px; }
+/* Нижняя панель с макета: тёмная плашка во всю ширину, слева сумма и
+   сколько всего, справа жёлтая кнопка. Прежняя маленькая пилюля в углу
+   прятала сумму и читалась как случайная кнопка поверх витрины. */
+.cart-bar{
+  position:fixed; left:16px; right:16px; bottom:max(16px,env(safe-area-inset-bottom));
+  max-width:448px; margin:0 auto;
+  background:var(--bar); color:var(--on-bar); border-radius:18px;
+  padding:12px 12px 12px 18px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.28);
+  cursor:pointer; z-index:60; border:none; font-family:inherit; text-align:left;
+}
+.cart-bar:active{ transform:scale(.985); }
+.cart-bar .cart-bar-info{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.cart-bar .cart-bar-total{ font-size:15px; font-weight:700; letter-spacing:0; }
+.cart-bar .cart-bar-sub{ font-size:12px; opacity:.65; }
+.cart-bar .cart-bar-cta{
+  flex-shrink:0; background:var(--accent); color:var(--on-accent);
+  border-radius:12px; padding:10px 14px; font-size:13px; font-weight:700;
+}
+
+@media (min-width:560px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+
+#cartBar{display:flex !important;}
+#cartBar.cart-hidden{display:none !important;}

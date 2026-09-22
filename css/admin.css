@@ -1,0 +1,231 @@
+/* Склад, мастер товара, редактор количества, поставка.
+   Часть витрины Chipatap. Порядок подключения файлов значим: каскад рассчитан на
+   tokens → base → layout → catalog → sheets → admin, как было в исходном одном файле. */
+
+.admin-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--card); border:none; display:flex; align-items:center;justify-content:center;
+  box-shadow:var(--shadow); cursor:pointer; font-size:16px; margin-right:8px;
+  transition:transform .15s;
+}
+.admin-btn:active{transform:scale(0.9);}
+.admin-add-btn{
+  background:none; border:none; color:var(--accent-ink); font-size:14px; font-weight:600; cursor:pointer;
+}
+.admin-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+.admin-list{overflow-y:auto; flex:1; min-height:0; display:flex; flex-direction:column; gap:14px;}
+#adminListView{display:flex; flex-direction:column; flex:1; min-height:0;}
+#adminFormView{overflow-y:auto; flex:1; min-height:0;}
+/* Строка была залита var(--bg) — тем же цветом, что и фон страницы, поэтому
+   склад читался как пустое полотно. Строка это карточка, значит --card */
+.admin-row{
+  display:flex; align-items:center; gap:11px; background:var(--card);
+  border-radius:var(--radius-md); padding:9px 12px; box-shadow:var(--shadow);
+}
+.admin-row .thumb-sm{
+  width:54px;height:54px;border-radius:12px;background:var(--thumb);
+  display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;
+  overflow:hidden;
+}
+.admin-row .thumb-sm img{width:100%;height:100%;object-fit:cover;display:block;}
+.admin-row .meta{flex:1; min-width:0;}
+/* На пиксельном моноширинном шрифте строка шире, чем была на системном,
+   и название обрывалось раньше. Кегль на пункт меньше возвращает прежнюю
+   длину видимого имени. */
+.admin-row .meta .name{font-size:13px; -webkit-line-clamp:1;}
+.admin-row .meta .sub{font-size:12px; color:var(--hint); margin-top:2px;}
+.variant-row{
+  display:flex; align-items:center; gap:10px; background:var(--bg);
+  border-radius:var(--radius-md); padding:10px 12px;
+}
+.variant-row .meta{flex:1; min-width:0;}
+.variant-row .meta .name{font-size:13px; display:block; -webkit-line-clamp:unset; white-space:normal; overflow:visible;}
+.variant-row .meta .sub{font-size:12px; color:var(--hint); margin-top:2px;}
+.stock-toggle{
+  border:none; border-radius:10px; padding:5px 9px; font-size:11px; font-weight:700; cursor:pointer;
+}
+.stock-toggle.on{background:var(--new); color:var(--on-accent);}
+.stock-toggle.off{background:var(--hint); color:#fff;}
+.icon-btn{
+  width:28px;height:28px;border-radius:50%;border:none;background:var(--card);
+  cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.form-row{margin-bottom:16px;}
+.form-row label{font-size:13px; color:var(--hint); display:block; margin-bottom:7px;}
+.form-row input, .form-row select{
+  width:100%; box-sizing:border-box; padding:14px 14px; border-radius:12px;
+  border:1px solid var(--separator); background:var(--bg); font-size:16px;
+}
+.form-actions{display:flex; gap:10px; margin-top:14px;}
+.form-actions .checkout-btn{flex:1;}
+.form-actions .secondary{background:var(--bg); color:var(--text);}
+
+/* --- админка: отдельная полноэкранная страница, а не выезжающая шторка --- */
+.admin-page{
+  position:fixed; inset:0; z-index:70; background:var(--bg);
+  display:none; flex-direction:column;
+  padding:0 14px max(14px,env(safe-area-inset-bottom));
+  overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+}
+.admin-page.show{ display:flex; }
+.admin-page-head{
+  position:sticky; top:0; z-index:3; background:var(--bg);
+  padding:calc(var(--safe-top) + 8px) 0 8px;
+  display:flex; align-items:center; gap:8px;
+  font-size:14px; font-weight:600; border-bottom:1px solid var(--separator);
+}
+.admin-page-head span{ flex:1; min-width:0; }
+.admin-close{
+  width:36px; height:36px; border-radius:50%; border:1px solid var(--separator);
+  background:var(--sheet-bg); color:var(--text); font-size:18px; cursor:pointer;
+  font-family:inherit; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.admin-page-head .admin-add-btn.round{
+  flex:0 0 auto; width:38px; height:38px; padding:0; border-radius:50%;
+  font-size:24px; line-height:1; display:flex; align-items:center; justify-content:center;
+}
+/* Клавиатура занимает низ экрана — оставляем место, чтобы поля не прятались под ней */
+.admin-page .form-row:last-of-type{ margin-bottom:0; }
+#adminFormView, #adminSupplyView{ padding-bottom:40vh; }
+
+.admin-search input{
+  width:100%; box-sizing:border-box; border-radius:12px; border:1px solid var(--separator);
+  background:var(--bg); padding:10px 12px; font-family:inherit; font-size:14px; color:var(--text);
+  margin-bottom:8px;
+}
+.admin-filters{ display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; }
+.admin-filters::-webkit-scrollbar{ display:none; }
+.admin-filters .chip{ flex-shrink:0; }
+/* Сводка одной строкой мелким шрифтом — место дороже */
+.admin-summary{
+  display:flex; gap:7px; flex-wrap:nowrap; overflow-x:auto; white-space:nowrap;
+  font-size:11px; color:var(--hint);
+  padding:2px 0 12px;
+}
+.admin-summary::-webkit-scrollbar{ display:none; }
+.admin-summary span{
+  flex-shrink:0; background:var(--card); border-radius:20px;
+  padding:6px 11px; box-shadow:var(--shadow);
+}
+.admin-summary b{ color:var(--text); font-size:12px; }
+/* Раздел был серой строчкой над такими же серыми строками — граница между
+   линейками не читалась. Теперь это шапка: цветная метка слева, обычный
+   размер текста и счётчик товаров справа */
+/* отступ между линейками задаёт gap у .admin-list — своего margin не нужно */
+.admin-group-title{
+  display:flex; align-items:center; gap:9px;
+  font-size:14px; font-weight:700; color:var(--text);
+  padding:9px 12px; margin-bottom:7px;
+  border-radius:12px; background:var(--thumb);
+  border-left:3px solid var(--accent);
+}
+.admin-group-title .count{
+  margin-left:auto; flex-shrink:0;
+  font-size:11px; font-weight:700; color:var(--hint);
+  background:var(--card); border-radius:20px; padding:3px 9px;
+}
+.admin-group-rows{ display:flex; flex-direction:column; gap:7px; }
+.admin-row .stock-box{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+.admin-row .stock-box input{
+  width:46px; text-align:center; border-radius:9px; border:1px solid var(--separator);
+  background:var(--bg); color:var(--text); font-family:inherit; font-size:13px;
+  font-weight:700; padding:5px 2px;
+}
+.admin-row .stock-box button{
+  width:28px; height:28px; border-radius:8px; border:1px solid var(--separator);
+  background:var(--bg); color:var(--text); font-size:16px; cursor:pointer; font-family:inherit;
+  display:flex; align-items:center; justify-content:center; padding:0;
+}
+/* Правка подсвечивается рамкой, а не заливкой вместо фона: строка теперь
+   карточка, и подменять ей фон значит терять её из виду.
+   Зелёный — товар есть, красный — выставили ноль: так по экрану сразу
+   видно, сколько позиций кончилось */
+.admin-row.changed{ background:var(--accent-soft); box-shadow:inset 0 0 0 1.5px var(--new); }
+.admin-row.changed-out{ background:rgba(255,59,48,.12); box-shadow:inset 0 0 0 1.5px var(--danger); }
+.admin-row .sub .out{ color:var(--danger); font-weight:700; }
+/* Кнопка сохранения живёт в шапке и появляется только при правках */
+.head-save{
+  flex:0 0 auto; border:none; cursor:pointer; font-family:inherit;
+  background:var(--accent); color:var(--on-accent); border-radius:12px;
+  padding:9px 13px; font-size:13px; font-weight:700;
+}
+/* ширина счётчика фиксирована, иначе «1» → «10» дёргает шапку */
+.head-save b{ opacity:.85; display:inline-block; min-width:1.2em; text-align:center; }
+/* --- ввод количества у верхнего края --- */
+.qed-backdrop{
+  position:fixed; inset:0; background:var(--overlay); z-index:84;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.qed-backdrop.show{ opacity:1; pointer-events:auto; }
+.qed{
+  position:fixed; left:0; right:0; top:0; z-index:85;
+  background:var(--sheet-bg); border-radius:0 0 18px 18px;
+  padding:calc(var(--safe-top) + 14px) 16px 16px;
+  transform:translateY(-110%); transition:transform .22s ease;
+  box-shadow:0 6px 24px rgba(0,0,0,.25);
+}
+.qed.show{ transform:none; }
+.qed-name{ font-size:14px; font-weight:700; margin-bottom:12px; }
+.qed-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.qed-row button{
+  width:52px; height:52px; border-radius:14px; border:1px solid var(--separator);
+  background:var(--card); color:var(--text); font-size:24px; cursor:pointer; font-family:inherit;
+  flex-shrink:0;
+}
+.qed-row input{
+  flex:1; min-width:0; height:52px; text-align:center;
+  font-size:24px; font-weight:700; font-family:inherit;
+  border-radius:14px; border:1px solid var(--separator);
+  background:var(--card); color:var(--text); -webkit-appearance:none; appearance:none;
+}
+.qed-quick{ display:flex; gap:8px; margin-bottom:14px; }
+.qed-quick button{
+  flex:1; height:40px; border-radius:11px; border:1px solid var(--separator);
+  background:var(--card); color:var(--text); font-size:14px; font-weight:600;
+  cursor:pointer; font-family:inherit;
+}
+
+/* --- пошаговое добавление товара --- */
+.wiz-steps{ display:flex; gap:5px; margin:12px 0 14px; }
+.wiz-steps i{ flex:1; height:3px; border-radius:2px; background:var(--separator); }
+.wiz-steps i.done{ background:var(--accent); }
+.wiz-q{ font-size:19px; font-weight:700; margin-bottom:16px; }
+.hint-line{ font-size:12px; color:var(--hint); margin-top:6px; line-height:1.4; }
+.type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.type-grid button{
+  border:1px solid var(--separator); background:var(--card); color:var(--text);
+  border-radius:14px; padding:20px 10px; font-family:inherit; font-size:15px;
+  font-weight:600; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; gap:8px; text-align:center; line-height:1.25;
+}
+.type-grid button .em{ font-size:26px; }
+.type-grid button.active{ border-color:var(--accent); background:var(--accent-soft); }
+/* Сегменты вместо select: родной select на телефоне рисуется чёрным */
+.seg{ display:flex; gap:6px; }
+.seg button{
+  flex:1; border:1px solid var(--separator); background:var(--card); color:var(--text);
+  border-radius:12px; padding:14px 8px; font-family:inherit; font-size:15px;
+  font-weight:600; cursor:pointer;
+}
+.seg button.active{ background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+.wiz-nav{ display:flex; gap:10px; margin-top:20px; }
+.wiz-nav .checkout-btn{ flex:1; }
+.photo-drop{ display:flex; flex-direction:column; gap:10px; }
+.photo-preview{
+  width:100%; height:200px; border-radius:14px; background:var(--thumb);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  color:var(--hint); font-size:13px;
+}
+.photo-preview img{ width:100%; height:100%; object-fit:contain; }
+/* Поля формы: одинаково светлые в обеих темах */
+.form-row input, .form-row select, .form-row textarea{
+  -webkit-appearance:none; appearance:none;
+  background:var(--card); color:var(--text); border:1px solid var(--separator);
+}
+
+/* Зона рассылки отделена и лежит в самом низу — случайно не нажать */
+.supply-zone{
+  margin-top:32px; padding-top:18px; border-top:2px dashed var(--separator);
+}
+.supply-title{ font-size:15px; font-weight:700; margin-bottom:2px; }
+.supply-sub{ font-size:12px; color:var(--hint); margin-bottom:12px; }

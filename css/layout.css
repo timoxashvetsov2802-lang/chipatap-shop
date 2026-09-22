@@ -1,0 +1,133 @@
+/* Шапка, поиск, выдвижная панель.
+   Часть витрины Chipatap. Порядок подключения файлов значим: каскад рассчитан на
+   tokens → base → layout → catalog → sheets → admin, как было в исходном одном файле. */
+
+.app{
+  max-width:480px;
+  margin:0 auto;
+  min-height:100%;
+  background:var(--bg);
+  padding-bottom:100px;
+  position:relative;
+}
+@media (min-width:481px){
+  .app{box-shadow:0 0 40px rgba(0,0,0,0.15); min-height:100vh;}
+}
+/* Шапка листается вместе со списком: приклеенная она ехала за пальцем
+   вниз по экрану и отъедала место у товаров */
+header{
+  position:relative; z-index:20;
+  background:var(--bg);
+  padding:14px 16px 12px;
+  display:flex; align-items:center; gap:10px;
+}
+/* Фирменный знак: облако с логотипа на жёлтой плитке. Картинкой, а не
+   нарисованным заново SVG — знак должен совпадать с тем, что на вывеске,
+   а не быть похожим на него. */
+.logo{
+  width:42px; height:42px; flex-shrink:0; border-radius:13px;
+  background:var(--accent) url("../img/logo.png") center/cover no-repeat;
+  box-shadow:var(--shadow);
+}
+/* Заголовок забирает свободное место, поэтому бонусы и смена темы
+   прижаты к правому краю, а не висят вплотную к «Chipatap» */
+.brand{ flex:1; min-width:0; }
+.brand h1{font-size:19px; font-weight:700; letter-spacing:0; line-height:1.2;}
+.brand p{font-size:12px; color:var(--hint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.head-actions{ display:flex; align-items:center; gap:8px; }
+/* Баланс — синяя пилюля с макета; со сменой темы они одной высоты,
+   разновысокими читались как две случайные детали, а не как пара кнопок. Синий здесь единственное холодное
+   пятно и работает как ценник: жёлтым он слился бы с плиткой знака. */
+.pill-btn{
+  height:36px; padding:0 13px; border-radius:18px;
+  background:var(--info); border:none; box-shadow:none;
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:inherit; font-size:14px; font-weight:700; color:var(--on-info);
+  cursor:pointer; transition:transform .15s;
+}
+.pill-btn:active{ transform:scale(0.94); }
+.pill-btn svg{ color:currentColor; flex-shrink:0; }
+.theme-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--card); border:none; display:flex; align-items:center;justify-content:center;
+  box-shadow:var(--shadow); cursor:pointer;
+  transition:transform .15s;
+}
+.theme-btn:active{transform:scale(0.9);}
+.search-wrap{padding:0 16px 12px;}
+/* Поиск — белая пилюля во всю ширину, как на макете */
+.search{
+  display:flex; align-items:center; gap:10px;
+  background:var(--card); border-radius:999px;
+  padding:12px 18px; box-shadow:var(--shadow);
+}
+.search input{
+  border:none; outline:none; background:transparent; flex:1;
+  font-size:15px;
+}
+.search input::placeholder{color:var(--hint);}
+.search svg{color:var(--hint); flex-shrink:0;}
+.chips{
+  display:flex; gap:8px; padding:0 16px 14px; overflow-x:auto;
+  scrollbar-width:none;
+}
+.chips::-webkit-scrollbar{display:none;}
+.chip{
+  flex-shrink:0; padding:8px 16px; border-radius:20px;
+  background:var(--card); font-size:14px; font-weight:500;
+  border:none; cursor:pointer; box-shadow:var(--shadow); white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.chip.active{background:var(--accent); color:var(--on-accent);}
+
+/* --- выдвижная панель категорий --- */
+.drawer{
+  position:fixed; top:0; bottom:0; left:0; z-index:76;
+  width:236px; max-width:78vw; background:var(--sheet-bg);
+  transform:translateX(-100%); transition:transform .26s ease;
+  padding:calc(var(--safe-top) + 16px) 12px max(16px,env(safe-area-inset-bottom));
+  overflow-y:auto; overscroll-behavior:contain;
+  box-shadow:4px 0 24px rgba(0,0,0,.18);
+  display:flex; flex-direction:column; gap:6px;
+}
+.drawer.show{ transform:none; }
+.drawer-title{ font-size:12px; font-weight:700; color:var(--hint); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.drawer nav{ display:flex; flex-direction:column; gap:6px; }
+.drawer nav button{
+  width:100%; border:none; cursor:pointer; font-family:inherit;
+  background:var(--card); color:var(--text); border-radius:12px;
+  padding:13px 14px; font-size:14px; font-weight:600; text-align:left;
+}
+.drawer nav button.active{ background:var(--accent); color:var(--on-accent); }
+.drawer nav button{ display:flex; align-items:center; gap:8px; }
+.drawer-backdrop{
+  position:fixed; inset:0; background:var(--overlay); z-index:75;
+  opacity:0; pointer-events:none; transition:opacity .26s;
+}
+.drawer-backdrop.show{ opacity:1; pointer-events:auto; }
+/* Островок у левого края: видимая часть — линия 3x40%, всё остальное
+   прозрачное. Вся кнопка 10px в ширину, чтобы попадать пальцем, и это
+   меньше отступа сетки (16px) — на карточки не заезжает. */
+.drawer-tab{
+  position:fixed; left:0; top:50%; transform:translateY(-50%); z-index:62;
+  width:10px; height:40vh; border:none; cursor:pointer; padding:0;
+  background:transparent; box-shadow:none; font-size:0; color:transparent;
+  display:flex; align-items:center;
+}
+.drawer-tab::before{
+  content:""; display:block; width:3px; height:100%;
+  border-radius:0 3px 3px 0; background:var(--hint); opacity:.35;
+  transition:opacity .15s;
+}
+.drawer-tab:active::before{ opacity:.85; }
+.drawer-tab.hidden{ display:none; }
+/* Круглый «бутерброд» — основной способ открыть панель */
+.burger{
+  width:36px; height:36px; border-radius:50%; flex-shrink:0;
+  border:none; background:var(--card); box-shadow:var(--shadow); cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  padding:0; font-family:inherit;
+}
+.burger i{ display:block; width:17px; height:2px; border-radius:2px; background:var(--text); }
+.burger:active{ transform:scale(.92); }
+.admin-page-head .burger{ width:38px; height:38px; }
