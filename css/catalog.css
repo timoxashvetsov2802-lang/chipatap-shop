@@ -49,8 +49,8 @@
 .ph{
   width:46%; aspect-ratio:232/158; flex-shrink:0;
   background:var(--hint); opacity:.38; user-select:none;
-  -webkit-mask:url("../img/cloud.png?v=7bda755") center/contain no-repeat;
-          mask:url("../img/cloud.png?v=7bda755") center/contain no-repeat;
+  -webkit-mask:url("../img/cloud.png?v=285f05c") center/contain no-repeat;
+          mask:url("../img/cloud.png?v=285f05c") center/contain no-repeat;
 }
 /* Бейджи держат свои цвета, а не --new/--hit: те остались значением
    «в наличии» и «внимание» (звёзды, остаток на исходе) и в бейджах

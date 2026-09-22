@@ -28,9 +28,9 @@ header{
   width:42px; height:42px; flex-shrink:0; border-radius:13px;
   border:none; padding:0; cursor:pointer; transition:transform .15s;
   background:var(--accent) center/cover no-repeat;
-  background-image:url("../img/logo.png?v=7bda755");
-  background-image:image-set(url("../img/logo.webp?v=7bda755") type("image/webp"),
-                             url("../img/logo.png?v=7bda755") type("image/png"));
+  background-image:url("../img/logo.png?v=285f05c");
+  background-image:image-set(url("../img/logo.webp?v=285f05c") type("image/webp"),
+                             url("../img/logo.png?v=285f05c") type("image/png"));
   box-shadow:var(--shadow);
 }
 .logo:active{ transform:scale(.92); }
@@ -59,17 +59,21 @@ header{
   transition:transform .15s;
 }
 .theme-btn:active{transform:scale(0.9);}
-/* Поиск едет со страницей: шапка уходит вверх, а строка остаётся под рукой.
-   Фон обязателен — иначе сквозь неё просвечивают уезжающие карточки. */
+/* Поиск едет со страницей: шапка уходит вверх, строка остаётся под рукой.
+   Держатель прозрачный — плывёт только сам островок, а не полоса фона вместе
+   с ним. Карточки проходят за ним и видны в просветах по краям, поэтому
+   островок отрывается от витрины тенью. */
 .search-wrap{
   position:sticky; top:var(--safe-top); z-index:25;
-  padding:6px 16px 12px; background:var(--bg);
+  padding:6px 16px 12px; background:transparent;
+  pointer-events:none;           /* просветы не должны перехватывать касания */
 }
+.search{ pointer-events:auto; }
 /* Поиск — белая пилюля во всю ширину, как на макете */
 .search{
   display:flex; align-items:center; gap:10px;
   background:var(--card); border-radius:999px;
-  padding:12px 18px; box-shadow:var(--shadow);
+  padding:12px 18px; box-shadow:var(--shadow-float);
 }
 .search input{
   border:none; outline:none; background:transparent; flex:1;

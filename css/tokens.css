@@ -23,6 +23,8 @@ html[data-theme="light"]{
   --hint:#8a7663;
   --separator:#f1e7d0;
   --shadow:0 2px 12px rgba(58,44,8,0.07);
+  /* Для того, что висит над содержимым: поиск отрывается от витрины только тенью */
+  --shadow-float:0 6px 18px rgba(58,44,8,0.18);
   --sheet-bg:#ffffff;
   --overlay:rgba(26,20,6,0.55);
   --accent:#fcc101;
@@ -61,6 +63,7 @@ html[data-theme="dark"]{
   --hint:rgba(255,255,255,0.6);
   --separator:rgba(255,255,255,0.14);
   --shadow:0 2px 14px rgba(0,0,0,0.45);
+  --shadow-float:0 8px 22px rgba(0,0,0,0.55);
   --sheet-bg:#2f2f2f;
   --overlay:rgba(0,0,0,0.75);
   --accent:#fed644;
