@@ -3,8 +3,8 @@
    остальное и ни от какого файла выше по каскаду не зависит.
 
    Движение здесь ровно одно: всё проявляется слева направо — сначала знак,
-   следом название и подпись. Край проявления растушёван, кривая с мягким
-   началом: резкая граница и мгновенный старт читались как рывок. Броска на зрителя тут больше нет: он разгонял
+   следом название и подпись. Край растушёван, кривая близка к прямой: резкая
+   граница и разгон в середине читались как рывок. Броска на зрителя тут больше нет: он разгонял
    картинку до одиннадцатикратного размера, и на телефоне это шло рывками.
    Дыма и дыхания тоже нет — одно движение, один приём.
 
@@ -39,23 +39,32 @@
      первым кадром, и лишняя четверть мегабайта здесь дороже всего. Первая
      строка остаётся запасной для браузеров без image-set. */
   background:center/contain no-repeat;
-  background-image:url("../img/cloud.png?v=da773b4");
-  background-image:image-set(url("../img/cloud.webp?v=da773b4") type("image/webp"),
-                             url("../img/cloud.png?v=da773b4") type("image/png"));
+  background-image:url("../img/cloud.png?v=7bda755");
+  background-image:image-set(url("../img/cloud.webp?v=7bda755") type("image/webp"),
+                             url("../img/cloud.png?v=7bda755") type("image/png"));
   /* Проявление идёт маской с растушёванным краем, а не обрезкой: у clip-path
      граница — бритвенная вертикаль, и знак будто отрезали, а не проявили.
      Маска вчетверо шире знака: в начале над ним стоит её прозрачная часть, в
      конце — сплошная, а переход шириной в пятую часть знака проезжает между.
+     Ширина маски выбрана так, чтобы открытие занимало всю анимацию: маска
+     едет на свою длину минус ширина знака, и если сделать её вчетверо шире,
+     то две трети времени над знаком стоит сплошная или пустая её часть, а всё
+     открытие проскакивает за полсекунды в середине. При 230% дорога маски
+     равна ширине знака плюс растушёвка — знак открывается ровно от первого
+     кадра до последнего.
+
      Браузер без поддержки масок покажет знак сразу целиком — это не поломка. */
-  -webkit-mask-image:linear-gradient(90deg,#000 0 55%,rgba(0,0,0,0) 60%);
-          mask-image:linear-gradient(90deg,#000 0 55%,rgba(0,0,0,0) 60%);
-  -webkit-mask-size:400% 100%;  mask-size:400% 100%;
+  -webkit-mask-image:linear-gradient(90deg,#000 0 44%,rgba(0,0,0,0) 56.5%);
+          mask-image:linear-gradient(90deg,#000 0 44%,rgba(0,0,0,0) 56.5%);
+  -webkit-mask-size:230% 100%;  mask-size:230% 100%;
   -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
   -webkit-mask-position:100% 0;  mask-position:100% 0;
-  animation:splash-wipe 1.35s cubic-bezier(.35,0,.25,1) .15s forwards;
+  animation:splash-wipe 1.8s cubic-bezier(.3,.15,.45,.9) .05s forwards;
 }
-/* Кривая с мягким началом и долгим выкатом. Прежняя (.2,.85,.3,1) вылетала
-   с места почти мгновенно и потом доползала — отсюда и ощущение рывка. */
+/* Кривая держится близко к прямой: знак открывается ровно, с той же скоростью
+   от края до края, и лишь у самых концов притормаживает. Предыдущая (.35,0,.25,1)
+   почти стояла первые полсекунды, а потом проходила середину знака за треть
+   секунды — в раскадровке это и выглядело как «сразу всё с конца». */
 @keyframes splash-wipe{
   from{ -webkit-mask-position:100% 0; mask-position:100% 0; }
   to{   -webkit-mask-position:0% 0;   mask-position:0% 0; }
@@ -66,9 +75,9 @@
    разных появления. Своей сдвижки у текста нет — уезжающая строка спорила бы
    со знаком, который к этому моменту уже стоит на месте. */
 .splash-word, .splash-sub{
-  -webkit-mask-image:linear-gradient(90deg,#000 0 55%,rgba(0,0,0,0) 60%);
-          mask-image:linear-gradient(90deg,#000 0 55%,rgba(0,0,0,0) 60%);
-  -webkit-mask-size:400% 100%;  mask-size:400% 100%;
+  -webkit-mask-image:linear-gradient(90deg,#000 0 44%,rgba(0,0,0,0) 56.5%);
+          mask-image:linear-gradient(90deg,#000 0 44%,rgba(0,0,0,0) 56.5%);
+  -webkit-mask-size:230% 100%;  mask-size:230% 100%;
   -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
   -webkit-mask-position:100% 0;  mask-position:100% 0;
 }
@@ -76,13 +85,13 @@
   margin-top:18px;
   font-size:30px; font-weight:700; color:#fff;
   text-shadow:2px 2px 0 rgba(90,60,0,.25);
-  animation:splash-wipe 1s cubic-bezier(.35,0,.25,1) .8s forwards;
+  animation:splash-wipe .85s cubic-bezier(.3,.15,.45,.9) 1.15s forwards;
 }
 .splash-sub{
   margin-top:6px;
   font-size:10px; font-weight:400; letter-spacing:2px; text-transform:uppercase;
   color:rgba(255,255,255,.92);
-  animation:splash-wipe 1s cubic-bezier(.35,0,.25,1) 1.05s forwards;
+  animation:splash-wipe .85s cubic-bezier(.3,.15,.45,.9) 1.4s forwards;
 }
 
 /* Просили не двигать — не двигаем. Здесь именно display:none, а не

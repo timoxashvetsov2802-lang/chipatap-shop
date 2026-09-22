@@ -28,9 +28,9 @@ header{
   width:42px; height:42px; flex-shrink:0; border-radius:13px;
   border:none; padding:0; cursor:pointer; transition:transform .15s;
   background:var(--accent) center/cover no-repeat;
-  background-image:url("../img/logo.png?v=da773b4");
-  background-image:image-set(url("../img/logo.webp?v=da773b4") type("image/webp"),
-                             url("../img/logo.png?v=da773b4") type("image/png"));
+  background-image:url("../img/logo.png?v=7bda755");
+  background-image:image-set(url("../img/logo.webp?v=7bda755") type("image/webp"),
+                             url("../img/logo.png?v=7bda755") type("image/png"));
   box-shadow:var(--shadow);
 }
 .logo:active{ transform:scale(.92); }
