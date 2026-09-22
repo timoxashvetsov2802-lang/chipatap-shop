@@ -1,6 +1,6 @@
 /* Картинки товара и заглушка, когда картинки нет или она не доехала. */
 
-import { esc, attr } from './format.js';
+import { attr } from './format.js';
 
 /* Telegram-браузер часто блокирует прямые запросы к imgbb, поэтому отдаём ВСЕ
    картинки через image-прокси images.weserv.nl (его домен не режется). Прокси
@@ -14,19 +14,13 @@ export function normalizeImageUrl(url){
   return 'https://images.weserv.nl/?url=' + encodeURIComponent(clean) + '&w=600&q=80&output=webp';
 }
 
-/* Первая буква или цифра названия: кавычки и скобки в начале имени
-   встречаются регулярно, а буквой работать не могут. */
-export function initialOf(name){
-  var m=String(name==null?'':name).match(/[0-9A-Za-zЀ-ӿ]/);
-  return m ? m[0].toUpperCase() : '•';
-}
-
-/* Заглушка вместо фото — первая буква названия. Эмодзи из таблицы рисовались
-   чужим цветным шрифтом и на витрине складывались в случайный набор картинок;
-   буква молчит и не спорит с товаром. Кегль в em: каждый контейнер миниатюры
-   уже задал свой размер, и буква масштабируется вместе с ним. */
+/* Заглушка вместо фото — полупрозрачное облако со знака (рисуется в CSS).
+   Раньше здесь была первая буква названия, а до неё эмодзи из таблицы: и то и
+   другое складывалось на витрине в случайный набор значков. Облако одно на
+   всех и не спорит с товаром. Подпись остаётся в aria-label: для читалки
+   «нет фото» полезнее, чем молчащая картинка. */
 export function placeholderHTML(label){
-  return '<span class="ph">'+esc(initialOf(label))+'</span>';
+  return '<span class="ph" role="img" aria-label="Фото товара нет"></span>';
 }
 
 /* Прокси images.weserv.nl иногда не отдаёт картинку (сам не достучался до
@@ -44,18 +38,19 @@ window.imgFallback = function(img){
   }
   var ph=document.createElement('span');
   ph.className='ph';
-  ph.textContent=img.getAttribute('data-initial') || '•';
+  ph.setAttribute('role','img');
+  ph.setAttribute('aria-label','Фото товара нет');
   img.replaceWith(ph);
 };
 
-/* label задаётся отдельно от товара там, где подпись карточки — имя линейки,
-   а не имя вкуса: буква на плитке должна совпадать с тем, что подписано. */
+/* label раньше задавал букву на плитке и потому передавался отдельно от
+   товара; заглушка теперь одна для всех, и параметр остался только ради
+   совместимости с местами вызова. */
 export function thumbContent(p, label){
-  var letter=initialOf(label || p.name);
   if(p.image){
     return '<img src="'+attr(p.image)+'" alt="" loading="lazy" decoding="async"'+
-      ' data-initial="'+attr(letter)+'" data-direct="'+attr(p.rawImage)+'"'+
+      ' data-direct="'+attr(p.rawImage)+'"'+
       ' style="width:100%;height:100%;object-fit:cover;" onerror="imgFallback(this)">';
   }
-  return placeholderHTML(label || p.name);
+  return placeholderHTML();
 }

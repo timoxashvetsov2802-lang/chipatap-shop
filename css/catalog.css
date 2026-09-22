@@ -39,13 +39,18 @@
   display:flex; align-items:center; justify-content:center;
   font-size:38px;
 }
-/* Заглушка вместо фото — первая буква названия. Эмодзи из таблицы
-   рисовались чужим цветным шрифтом и на витрине складывались в случайный
-   набор картинок; буква молчит и не спорит с товаром. Кегль в em: каждый
-   контейнер уже задал свой размер под эмодзи, и буква масштабируется вместе с ним. */
+/* Заглушка вместо фото — полупрозрачное облако со знака. До него здесь была
+   первая буква названия, а до неё эмодзи из таблицы; и то и другое читалось
+   как случайный набор значков. Облако одно на всю витрину и молчит.
+
+   Рисуется маской по альфе знака, а не самой картинкой: так заглушка берёт
+   цвет темы (--hint) и одинаково видна и на кремовом, и на графите. Размер в
+   процентах от плитки — одна и та же заглушка стоит и в карточке, и в корзине. */
 .ph{
-  font-size:1.5em; font-weight:700; letter-spacing:-.03em; line-height:1;
-  color:var(--hint); opacity:.5; user-select:none;
+  width:46%; aspect-ratio:232/158; flex-shrink:0;
+  background:var(--hint); opacity:.38; user-select:none;
+  -webkit-mask:url("../img/cloud.png?v=da773b4") center/contain no-repeat;
+          mask:url("../img/cloud.png?v=da773b4") center/contain no-repeat;
 }
 /* Бейджи держат свои цвета, а не --new/--hit: те остались значением
    «в наличии» и «внимание» (звёзды, остаток на исходе) и в бейджах
@@ -57,7 +62,7 @@
 }
 .badge.new{background:var(--badge-new-bg); color:var(--badge-new-ink);}
 .badge.hit{background:var(--badge-hit-bg); color:var(--badge-hit-ink);}
-.info{padding:10px 4px 2px; display:flex; flex-direction:column; gap:3px; flex:1;}
+.info{padding:10px 2px 2px; display:flex; flex-direction:column; gap:3px; flex:1;}
 /* Высоты строк заданы жёстко, а не по содержимому: иначе название в две
    строки сдвигало вниз рейтинг, вкусы и цену, и соседние карточки шли
    вразнобой. Теперь каждая строка занимает своё место всегда */
@@ -80,29 +85,37 @@
 /* Цена и кнопка прижаты к низу карточки, поэтому ряды выравниваются */
 .row-bottom{
   display:flex; align-items:center; justify-content:space-between; gap:6px;
-  margin-top:auto; padding-top:4px; flex-wrap:nowrap; min-height:32px;
+  margin-top:auto; padding-top:4px; flex-wrap:nowrap; min-height:34px;
 }
+/* Цена занимает всё, что осталось от слота кнопки, и обрезается сама.
+   Раньше она была flex:0 0 auto и длинным числом сдвигала кнопку с места. */
+/* 13px, а не 14: моноширинная «1 400 ₽» — это семь знаков, и на экране
+   шириной 360 точек четырнадцатым кеглем она упиралась в слот кнопки, срезая
+   знак рубля. */
 .price{
-  font-size:15px; font-weight:700; letter-spacing:0; white-space:nowrap; flex:0 0 auto;
+  font-size:13px; font-weight:700; letter-spacing:0; white-space:nowrap;
+  flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:clip;
 }
 /* Кнопка добавления — скруглённый квадрат, как на макете: круг рядом с
    квадратной миниатюрой выбивался из ритма карточки. */
 .add-btn{
-  width:34px;height:34px;border-radius:11px;background:var(--accent);
+  width:32px;height:32px;border-radius:10px;background:var(--accent);
   border:none;color:var(--on-accent);display:flex;align-items:center;justify-content:center;cursor:pointer;
   flex-shrink:0; font-size:19px; font-weight:700; line-height:1; transition:transform .15s;
 }
 .add-btn:active{transform:scale(0.85);}
+/* Ширина счётчика и слота под него связаны: счётчик шире слота выдавливает
+   цену, и кнопка «+» съезжает с места при каждом разном числе. */
 .qty{
   display:flex; align-items:center; gap:1px; background:var(--bg);
-  border-radius:12px; padding:2px; flex-shrink:0; height:34px; box-sizing:border-box;
+  border-radius:11px; padding:2px; flex-shrink:0; height:32px; box-sizing:border-box;
 }
 .qty button{
-  width:30px;height:30px;border-radius:9px;border:none;background:var(--card);
+  width:24px;height:24px;border-radius:8px;border:none;background:var(--card);
   color:var(--accent-ink); font-size:14px; font-weight:700; cursor:pointer;
   display:flex;align-items:center;justify-content:center; flex-shrink:0;
 }
-.qty span{font-size:13px; font-weight:700; min-width:12px; text-align:center;}
+.qty span{font-size:13px; font-weight:700; min-width:14px; text-align:center;}
 .qty-big{ width:100%; height:52px; justify-content:space-between; padding:4px 6px; border-radius:16px; }
 .qty-big button{ width:44px; height:44px; border-radius:12px; font-size:22px; }
 .qty-big span{ font-size:18px; min-width:40px; }

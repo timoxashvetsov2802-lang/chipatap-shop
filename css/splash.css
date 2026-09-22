@@ -39,9 +39,9 @@
      первым кадром, и лишняя четверть мегабайта здесь дороже всего. Первая
      строка остаётся запасной для браузеров без image-set. */
   background:center/contain no-repeat;
-  background-image:url("../img/cloud.png?v=6b1ce21");
-  background-image:image-set(url("../img/cloud.webp?v=6b1ce21") type("image/webp"),
-                             url("../img/cloud.png?v=6b1ce21") type("image/png"));
+  background-image:url("../img/cloud.png?v=da773b4");
+  background-image:image-set(url("../img/cloud.webp?v=da773b4") type("image/webp"),
+                             url("../img/cloud.png?v=da773b4") type("image/png"));
   /* Проявление идёт маской с растушёванным краем, а не обрезкой: у clip-path
      граница — бритвенная вертикаль, и знак будто отрезали, а не проявили.
      Маска вчетверо шире знака: в начале над ним стоит её прозрачная часть, в

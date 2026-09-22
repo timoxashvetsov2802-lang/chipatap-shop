@@ -3,7 +3,7 @@ import { esc, attr, fmt, plural, otzyv, starsSmall, starsHTML, parseStamp } from
 import { CSV_URL, BALANCE_CSV_URL, REVIEWS_CSV_URL, GAS_URL, ORDERS_URL,
          ORDERS_TOKEN, BOT_USERNAME, fetchProducts, fetchReviews, fetchBalance,
          postToGAS, sendToGAS } from './api.js';
-import { normalizeImageUrl, initialOf, placeholderHTML, thumbContent } from './images.js';
+import { normalizeImageUrl, placeholderHTML, thumbContent } from './images.js';
 import { tg, inRealTelegram, openedFromKeyboardButton, MY_UID, MY_NAME,
          initTelegram, haptic } from './telegram.js';
 import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
@@ -214,7 +214,7 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
   document.getElementById('drawerCartBtn').onclick=function(){
     closeDrawer();
     if(!Object.keys(cart).length){ toast('Корзина пуста'); return; }
-    openSheet();
+    openCartOverAll();
   };
   document.getElementById('drawerBonusBtn').onclick=function(){
     closeDrawer();
@@ -1007,10 +1007,17 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     setScrollLock('cart',false); dropNav('cart'); updateCartBar();
   }
   enableSwipeToClose(sheet, closeSheet);
-  document.getElementById('cartBar').onclick=function(){
+  /* Корзина и линейка с вкусом — одинаковые шторки на одном слое, и та, что
+     объявлена в разметке позже, перекрывает предыдущую. Корзина в разметке
+     первая, поэтому открытый вкус оставался поверх неё: нажимаешь «в корзину»,
+     а на экране ничего не меняется — она «пропадает». Поэтому перед открытием
+     закрываем всё, что выше. */
+  function openCartOverAll(){
+    closeVariantSheet();
     closeProductModal();
     openSheet();
-  };
+  }
+  document.getElementById('cartBar').onclick=openCartOverAll;
   backdrop.onclick=closeSheet;
 
   function getBonusToUse(){

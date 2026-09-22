@@ -26,12 +26,14 @@ header{
    а не быть похожим на него. */
 .logo{
   width:42px; height:42px; flex-shrink:0; border-radius:13px;
+  border:none; padding:0; cursor:pointer; transition:transform .15s;
   background:var(--accent) center/cover no-repeat;
-  background-image:url("../img/logo.png?v=6b1ce21");
-  background-image:image-set(url("../img/logo.webp?v=6b1ce21") type("image/webp"),
-                             url("../img/logo.png?v=6b1ce21") type("image/png"));
+  background-image:url("../img/logo.png?v=da773b4");
+  background-image:image-set(url("../img/logo.webp?v=da773b4") type("image/webp"),
+                             url("../img/logo.png?v=da773b4") type("image/png"));
   box-shadow:var(--shadow);
 }
+.logo:active{ transform:scale(.92); }
 /* Заголовок забирает свободное место, поэтому бонусы и смена темы
    прижаты к правому краю, а не висят вплотную к «Chipatap» */
 .brand{ flex:1; min-width:0; }
@@ -57,7 +59,12 @@ header{
   transition:transform .15s;
 }
 .theme-btn:active{transform:scale(0.9);}
-.search-wrap{padding:0 16px 12px;}
+/* Поиск едет со страницей: шапка уходит вверх, а строка остаётся под рукой.
+   Фон обязателен — иначе сквозь неё просвечивают уезжающие карточки. */
+.search-wrap{
+  position:sticky; top:var(--safe-top); z-index:25;
+  padding:6px 16px 12px; background:var(--bg);
+}
 /* Поиск — белая пилюля во всю ширину, как на макете */
 .search{
   display:flex; align-items:center; gap:10px;
