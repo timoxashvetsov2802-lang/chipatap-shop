@@ -10,28 +10,30 @@
 <meta name="theme-color" content="#fff8e6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#222222" media="(prefers-color-scheme: dark)">
 <!-- Иконка — фирменный знак, а не буква: облако узнают, «C» на жёлтом квадрате нет -->
-<link rel="icon" href="img/icon.png?v=a8322a5">
-<link rel="apple-touch-icon" href="img/icon.png?v=a8322a5">
+<link rel="icon" href="img/icon.png?v=abcba6b">
+<link rel="apple-touch-icon" href="img/icon.png?v=abcba6b">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <!-- Боевые адреса таблиц и Apps Script. Файл в .gitignore, шаблон — config.example.js.
      При деплое положить рядом с index.html, иначе товары не загрузятся. -->
 <script src="config.js"></script>
 <!-- Порядок значим: каскад рассчитан именно на эту последовательность -->
-<link rel="stylesheet" href="css/tokens.css?v=a8322a5">
-<link rel="stylesheet" href="css/base.css?v=a8322a5">
-<link rel="stylesheet" href="css/layout.css?v=a8322a5">
-<link rel="stylesheet" href="css/catalog.css?v=a8322a5">
-<link rel="stylesheet" href="css/sheets.css?v=a8322a5">
-<link rel="stylesheet" href="css/admin.css?v=a8322a5">
+<link rel="stylesheet" href="css/tokens.css?v=abcba6b">
+<link rel="stylesheet" href="css/base.css?v=abcba6b">
+<link rel="stylesheet" href="css/layout.css?v=abcba6b">
+<link rel="stylesheet" href="css/catalog.css?v=abcba6b">
+<link rel="stylesheet" href="css/sheets.css?v=abcba6b">
+<link rel="stylesheet" href="css/admin.css?v=abcba6b">
 <!-- Заставка последней: она перекрывает всё и ни от чего выше не зависит -->
-<link rel="stylesheet" href="css/splash.css?v=a8322a5">
+<link rel="stylesheet" href="css/splash.css?v=abcba6b">
 </head>
 <body>
-<!-- Заставка открытия: знак проявляется слева направо и уходит броском на
-     зрителя. Лежит до витрины и без скриптов — рисуется первым же кадром, ещё
+<!-- Заставка открытия: знак, название и подпись проявляются слева направо.
+     Лежит до витрины и без скриптов — рисуется первым же кадром, ещё
      до того, как загрузятся модули и доедут товары. Гаснет сама, анимацией. -->
 <div id="splash" aria-hidden="true">
   <div class="splash-logo"></div>
+  <div class="splash-word">Chipatap</div>
+  <div class="splash-sub">вейп барахолка калуга</div>
 </div>
 <script>
   /* Узел убираем после того, как анимация его погасила: невидимая заставка
