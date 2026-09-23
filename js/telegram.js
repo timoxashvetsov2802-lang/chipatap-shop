@@ -70,3 +70,43 @@ export function haptic(style){
     if(tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(style||'light');
   }catch(e){}
 }
+
+/* --- Ярлык мини-аппы на домашнем экране (Bot API 8.0) ---
+
+   Ставит именно ярлык Telegram: он открывает наш магазин внутри Telegram, со
+   всем, что от этого зависит — кто пользователь, бонусы, отправка заказа.
+   Установка «как обычный сайт» (PWA) выглядела бы так же, но открывала бы
+   витрину в браузере, где Telegram не сообщает, кто пришёл: заказ оттуда
+   некому приписать. Поэтому её и не делаем.
+
+   Метода нет на iOS и на клиентах до 8.0 — там кнопку показывать нельзя,
+   мёртвая кнопка в панели только мешает. */
+export function homeScreenSupported(){
+  try{
+    return !!(tg && tg.addToHomeScreen &&
+              (!tg.isVersionAtLeast || tg.isVersionAtLeast('8.0')));
+  }catch(e){ return false; }
+}
+
+/* Статусы Telegram: added | missed | unknown | unsupported.
+   unknown приходит, когда клиент не может проверить (Android без разрешения
+   читать домашний экран) — кнопку в этом случае показываем: хуже лишнего
+   предложения только его отсутствие. */
+export function checkHomeScreen(cb){
+  if(!homeScreenSupported()){ cb('unsupported'); return; }
+  try{
+    if(typeof tg.checkHomeScreenStatus === 'function'){
+      tg.checkHomeScreenStatus(function(status){ cb(status || 'unknown'); });
+    } else {
+      cb('unknown');
+    }
+  }catch(e){ cb('unsupported'); }
+}
+
+export function addToHomeScreen(){
+  try{ tg.addToHomeScreen(); }catch(e){}
+}
+
+export function onHomeScreenAdded(fn){
+  try{ tg.onEvent && tg.onEvent('homeScreenAdded', fn); }catch(e){}
+}

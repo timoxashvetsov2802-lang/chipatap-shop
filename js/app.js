@@ -5,7 +5,8 @@ import { CSV_URL, BALANCE_CSV_URL, REVIEWS_CSV_URL, GAS_URL, ORDERS_URL,
          postToGAS, sendToGAS } from './api.js';
 import { normalizeImageUrl, placeholderHTML, thumbContent } from './images.js';
 import { tg, inRealTelegram, openedFromKeyboardButton, MY_UID, MY_NAME,
-         initTelegram, haptic } from './telegram.js';
+         initTelegram, haptic, checkHomeScreen, addToHomeScreen,
+         onHomeScreenAdded } from './telegram.js';
 import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
          groupProducts, groupKeyOf, coverOf, orderedVariants, unitWord } from './product.js';
 
@@ -216,6 +217,28 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     if(!Object.keys(cart).length){ toast('Корзина пуста'); return; }
     openCartOverAll();
   };
+  /* Ярлык магазина на домашнем экране: одно нажатие — и Telegram ставит
+     иконку, которая открывает витрину сразу, минуя чат с ботом.
+
+     Кнопка появляется, только если клиент это умеет и ярлыка ещё нет:
+     на iOS и на Telegram до 8.0 метода нет вовсе. */
+  (function(){
+    var btn=document.getElementById('drawerInstallBtn');
+    if(!btn) return;
+    checkHomeScreen(function(status){
+      if(status==='missed' || status==='unknown') btn.style.display='';
+    });
+    btn.onclick=function(){
+      haptic('light');
+      closeDrawer();
+      addToHomeScreen();
+    };
+    onHomeScreenAdded(function(){
+      btn.style.display='none';
+      toast('Готово — ярлык на домашнем экране');
+    });
+  })();
+
   document.getElementById('drawerBonusBtn').onclick=function(){
     closeDrawer();
     openReferral();
