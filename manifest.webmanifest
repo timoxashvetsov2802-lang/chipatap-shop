@@ -1,0 +1,17 @@
+{
+  "name": "Chipatap — вейп барахолка Калуга",
+  "short_name": "Chipatap",
+  "description": "Магазин жидкостей, одноразок и подов. Заказ в Telegram, встреча в условленное время.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fcc101",
+  "theme_color": "#fff8e6",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

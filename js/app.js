@@ -6,7 +6,7 @@ import { CSV_URL, BALANCE_CSV_URL, REVIEWS_CSV_URL, GAS_URL, ORDERS_URL,
 import { normalizeImageUrl, placeholderHTML, thumbContent } from './images.js';
 import { tg, inRealTelegram, openedFromKeyboardButton, MY_UID, MY_NAME,
          initTelegram, haptic, checkHomeScreen, addToHomeScreen,
-         onHomeScreenAdded } from './telegram.js';
+         onHomeScreenAdded, openExternal } from './telegram.js';
 import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
          groupProducts, groupKeyOf, coverOf, orderedVariants, unitWord } from './product.js';
 
@@ -217,6 +217,58 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     if(!Object.keys(cart).length){ toast('Корзина пуста'); return; }
     openCartOverAll();
   };
+  /* Сервис-воркер. Нужен ради установки приложением: без него браузер
+     установку не предлагает, а установленная витрина показывает ошибку сети
+     вместо магазина, когда связь моргнула. Регистрируем после загрузки, чтобы
+     не отбирать канал у товаров. */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+
+  /* Установка витрины приложением. В отличие от ярлыка Telegram, такое
+     приложение открывается сразу в магазин, без захода в Telegram.
+
+     Внутри Telegram установить нельзя — его встроенный браузер этого не умеет.
+     Поэтому оттуда кнопка уводит в настоящий браузер, и адрес несёт с собой
+     uid: установленная витрина запускается без Telegram, и аккаунт ей больше
+     узнать неоткуда (см. MY_UID в telegram.js). */
+  (function(){
+    var btn=document.getElementById('drawerPwaBtn');
+    if(!btn) return;
+    var standalone=false;
+    try{
+      standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches)
+                || window.navigator.standalone === true;
+    }catch(e){}
+    if(standalone) return;           // уже установлено — предлагать нечего
+
+    var deferred=null;
+    window.addEventListener('beforeinstallprompt', function(e){
+      e.preventDefault();
+      deferred=e;
+    });
+    btn.style.display='';
+
+    btn.onclick=function(){
+      haptic('light');
+      closeDrawer();
+      if(deferred){ deferred.prompt(); deferred=null; return; }
+      if(inRealTelegram){
+        var url=location.origin+location.pathname+(MY_UID ? ('?uid='+encodeURIComponent(MY_UID)) : '');
+        if(openExternal(url)) toast('Открыл в браузере — там «Установить приложение»');
+        return;
+      }
+      // Safari на iPhone установку сам не предлагает — там это делается руками
+      toast('Меню браузера → «Установить приложение» или «На экран «Домой»»');
+    };
+    window.addEventListener('appinstalled', function(){
+      btn.style.display='none';
+      toast('Готово — приложение установлено');
+    });
+  })();
+
   /* Ярлык магазина на домашнем экране: одно нажатие — и Telegram ставит
      иконку, которая открывает витрину сразу, минуя чат с ботом.
 

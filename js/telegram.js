@@ -26,10 +26,36 @@ const TG_USER = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
 /* uid обычно приходит параметром от бота — у приложения, открытого
    КЛАВИАТУРНОЙ кнопкой, initData пустой и взять id больше неоткуда. А вот
    у открытого синей кнопкой меню initData как раз заполнен: оттуда и берём
-   запасной вариант, иначе бонусы и реф-ссылка молча не работают. */
+   запасной вариант, иначе бонусы и реф-ссылка молча не работают.
+
+   Третий источник — память браузера. Витрина, установленная приложением,
+   запускается со своего адреса: ни ?uid=, ни Telegram рядом нет, и аккаунт
+   взять больше неоткуда. Поэтому однажды узнанный id запоминаем; им же
+   подписываются отзывы, поэтому имя помним вместе с ним. */
+function remembered(key){
+  try{ return localStorage.getItem(key) || ''; }catch(e){ return ''; }
+}
+function remember(key, value){
+  try{ if(value) localStorage.setItem(key, value); }catch(e){}
+}
+
 export const MY_UID = new URLSearchParams(location.search).get('uid')
-                   || (TG_USER && TG_USER.id ? String(TG_USER.id) : '');
-export const MY_NAME = (TG_USER && TG_USER.first_name) || 'Аноним';
+                   || (TG_USER && TG_USER.id ? String(TG_USER.id) : '')
+                   || remembered('chipatap_uid');
+export const MY_NAME = (TG_USER && TG_USER.first_name)
+                   || remembered('chipatap_name')
+                   || 'Аноним';
+remember('chipatap_uid', MY_UID);
+if(MY_NAME !== 'Аноним') remember('chipatap_name', MY_NAME);
+
+/* Ссылка наружу: из Telegram — его же методом (иначе она откроется во
+   встроенном браузере, где установки приложения нет), из обычного браузера —
+   обычной вкладкой. */
+export function openExternal(url){
+  try{ if(tg && tg.openLink){ tg.openLink(url); return true; } }catch(e){}
+  try{ window.open(url, '_blank'); return true; }catch(e){}
+  return false;
+}
 
 export function initTelegram(){
   if(!tg) return;

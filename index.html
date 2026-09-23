@@ -10,21 +10,27 @@
 <meta name="theme-color" content="#fff8e6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#222222" media="(prefers-color-scheme: dark)">
 <!-- Иконка — фирменный знак, а не буква: облако узнают, «C» на жёлтом квадрате нет -->
-<link rel="icon" href="img/icon.png?v=77ac4f2">
-<link rel="apple-touch-icon" href="img/icon.png?v=77ac4f2">
+<link rel="icon" href="img/icon.png?v=11301a8">
+<link rel="apple-touch-icon" href="img/icon.png?v=11301a8">
+<!-- Установка витрины приложением: манифест + сервис-воркер (js/app.js).
+     Такое приложение открывается сразу в магазин, без захода в Telegram. -->
+<link rel="manifest" href="manifest.webmanifest?v=11301a8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Chipatap">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <!-- Боевые адреса таблиц и Apps Script. Файл в .gitignore, шаблон — config.example.js.
      При деплое положить рядом с index.html, иначе товары не загрузятся. -->
 <script src="config.js"></script>
 <!-- Порядок значим: каскад рассчитан именно на эту последовательность -->
-<link rel="stylesheet" href="css/tokens.css?v=77ac4f2">
-<link rel="stylesheet" href="css/base.css?v=77ac4f2">
-<link rel="stylesheet" href="css/layout.css?v=77ac4f2">
-<link rel="stylesheet" href="css/catalog.css?v=77ac4f2">
-<link rel="stylesheet" href="css/sheets.css?v=77ac4f2">
-<link rel="stylesheet" href="css/admin.css?v=77ac4f2">
+<link rel="stylesheet" href="css/tokens.css?v=11301a8">
+<link rel="stylesheet" href="css/base.css?v=11301a8">
+<link rel="stylesheet" href="css/layout.css?v=11301a8">
+<link rel="stylesheet" href="css/catalog.css?v=11301a8">
+<link rel="stylesheet" href="css/sheets.css?v=11301a8">
+<link rel="stylesheet" href="css/admin.css?v=11301a8">
 <!-- Заставка последней: она перекрывает всё и ни от чего выше не зависит -->
-<link rel="stylesheet" href="css/splash.css?v=77ac4f2">
+<link rel="stylesheet" href="css/splash.css?v=11301a8">
 </head>
 <body>
 <!-- Заставка открытия: знак, название и подпись проявляются слева направо.
@@ -92,7 +98,9 @@
       <button type="button" id="drawerBonusBtn">🎁 Бонусы</button>
       <!-- Ярлык на домашний экран. Показывается скриптом и только там, где
            Telegram правда умеет его поставить -->
-      <button type="button" id="drawerInstallBtn" style="display:none">📲 На экран «Домой»</button>
+      <button type="button" id="drawerInstallBtn" style="display:none">📲 Ярлык в Telegram</button>
+      <!-- Установка приложением: открывается сразу в витрину, без Telegram -->
+      <button type="button" id="drawerPwaBtn" style="display:none">📱 Установить приложение</button>
     </nav>
   </div>
   <!-- Рассылка живёт здесь: со страницы склада убрана, чтобы не съедала экран -->
