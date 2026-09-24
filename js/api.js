@@ -24,7 +24,7 @@ export const GAS_URL         = CFG.GAS_URL || '';
 export const ORDERS_URL   = CFG.ORDERS_GAS_URL || '';
 export const ORDERS_TOKEN = CFG.ORDERS_TOKEN || '';
 
-export const BOT_USERNAME = 'chipatapbot';
+export const BOT_USERNAME = 'chipatapa_bot';
 
 async function loadCSV(url){
   var res = await fetch(fresh(url), NO_CACHE);
