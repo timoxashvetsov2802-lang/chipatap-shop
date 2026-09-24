@@ -17,6 +17,10 @@ window.CHIPATAP_CONFIG = {
   REVIEWS_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZbkNfQpB7D6NgcWoCxegvLRwxSN6LfFfntwWhZjd2QB-JoCQ-vydkmpI-HLaGiSMfDqUBwSbcKSBB/pub?gid=1034499079&single=true&output=csv',
   // Веб-приложение Google Apps Script — приём отзывов и идей без закрытия Mini App
   GAS_URL: 'https://script.google.com/macros/s/AKfycbzu2RZJQTW-B10h8JDe3FDClWCgYmqRjI-_rjMqNWqjtkEFsk_1ckaiXjcojDcaZNix/exec',
+  // Заказы без оформления: покупателя перекидывает в личку продавцу с
+  // готовым сообщением (что берёт, сколько, фото). Ник без @. Пусто —
+  // работает прежнее оформление через бота (время встречи, подтверждение).
+  ADMIN_USERNAME: 'opezdal_wwdsggsd',
   // Приём заказов из магазина, открытого прямой ссылкой из канала.
   // Отдельный скрипт от GAS_URL — см. apps_script_orders.gs в репозитории бота.
   // Пусто — заказ оттуда не оформить, магазин честно скажет об этом.

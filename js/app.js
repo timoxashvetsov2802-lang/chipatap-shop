@@ -1,7 +1,8 @@
 /* Точка входа витрины. Остальное растаскивается по модулям. */
+import { buildCollage } from './collage.js';
 import { esc, attr, fmt, plural, otzyv, starsSmall, starsHTML, parseStamp } from './format.js';
 import { CSV_URL, BALANCE_CSV_URL, REVIEWS_CSV_URL, GAS_URL, ORDERS_URL,
-         ORDERS_TOKEN, BOT_USERNAME, fetchProducts, fetchReviews, fetchBalance,
+         ORDERS_TOKEN, BOT_USERNAME, ADMIN_USERNAME, uploadCollage, fetchProducts, fetchReviews, fetchBalance,
          postToGAS, sendToGAS } from './api.js';
 import { normalizeImageUrl, placeholderHTML, thumbContent } from './images.js';
 import { tg, inRealTelegram, openedFromKeyboardButton, MY_UID, MY_NAME,
@@ -775,20 +776,33 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
   lightboxImg.onclick=function(){ lightboxImg.classList.toggle('zoomed'); };
   lightbox.onclick=function(e){ if(e.target===lightbox) closeLightbox(); };
 
-  var selectedRating=5;
-  function renderStarPicker(){
+  /* 0 — оценка ещё не поставлена. Раньше по умолчанию горели все пять, и
+     было непонятно, что это выбор самого человека, а не рейтинг товара. */
+  var selectedRating=0;
+  var RATE_WORDS=['', 'Ужасно', 'Плохо', 'Нормально', 'Хорошо', 'Отлично'];
+  var STAR_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
+  function renderStarPicker(pop){
     var el=document.getElementById('starPicker');
     el.innerHTML='';
     for(var i=1;i<=5;i++){
       (function(i){
-        var s=document.createElement('span');
-        s.textContent = i<=selectedRating ? '★' : '☆';
-        s.style.color='var(--hit)';
-        s.style.cursor='pointer';
-        s.onclick=function(){ selectedRating=i; renderStarPicker(); };
-        el.appendChild(s);
+        var b=document.createElement('button');
+        b.type='button';
+        b.className='star-btn'+(i<=selectedRating?' on':'')+(pop && i===selectedRating?' pop':'');
+        b.setAttribute('role','radio');
+        b.setAttribute('aria-checked', i===selectedRating ? 'true' : 'false');
+        b.setAttribute('aria-label', i+' из 5');
+        b.innerHTML=STAR_SVG;
+        b.onclick=function(){ selectedRating=i; haptic('light'); renderStarPicker(true); };
+        el.appendChild(b);
       })(i);
     }
+    var cap=document.getElementById('starCaption');
+    cap.innerHTML = selectedRating
+      ? '<b>'+selectedRating+' из 5</b> · '+RATE_WORDS[selectedRating]
+      : 'Нажми на звезду';
+    cap.classList.toggle('set', !!selectedRating);
+    document.getElementById('submitReviewBtn').classList.toggle('idle', !selectedRating);
   }
   renderStarPicker();
 
@@ -821,10 +835,11 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     // человек пробовал один вкус, оценивать за остальные он не может.
     var v=currentVariant();
     if(!v){ toast('Сначала открой вкус'); return; }
+    if(!selectedRating){ toast('Сначала поставь оценку — нажми на звезду'); haptic('light'); return; }
     var text=document.getElementById('reviewText').value.trim();
     if(!sendToGAS({action:'review', type:'review', product_id: v.id, rating: selectedRating, text: text, name: MY_NAME, user_id: MY_UID})){ toast('Отправка не настроена'); return; }
     document.getElementById('reviewText').value='';
-    selectedRating=5;
+    selectedRating=0;
     renderStarPicker();
     haptic('medium');
     toast('Спасибо за отзыв!');
@@ -1046,6 +1061,7 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
       bindQtyHandlers(wrap);
     }
     document.getElementById('sheetTotal').textContent=fmt(cartTotal());
+    prepareCollage();
   }
 
   // --- sheet ---
@@ -1107,8 +1123,105 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
       fmt(Math.max(0, cartTotal()-used)) + (used ? ' (−'+used+' бонусов)' : '');
   }
 
+  /* Пока заказы идут напрямую: вместо оформления через бота покупателя
+     перекидывает в личку продавцу, где уже набрано, что он берёт. Фото всех
+     товаров склеены в одну картинку (js/collage.js) и стоят в сообщении
+     одной ссылкой — Telegram разворачивает её превью, и продавец видит весь
+     заказ, а не только первый товар. Не вышла склейка — в сообщение идут
+     ссылки на фото по отдельности. Прежнее оформление никуда не делось —
+     вернётся, если убрать ADMIN_USERNAME из config.js. */
+  var ORDER_VIA_DM = !!ADMIN_USERNAME;
+  var checkoutBtn = document.getElementById('checkoutBtn');
+  var CHECKOUT_LABEL = ORDER_VIA_DM ? 'Написать продавцу' : checkoutBtn.textContent;
+  checkoutBtn.textContent = CHECKOUT_LABEL;
+
+  function cartEntries(){
+    return Object.keys(cart).map(function(id){
+      var p=products.find(function(p){ return p.id===+id; });
+      return p ? { p:p, qty:cart[id] } : null;
+    }).filter(Boolean);
+  }
+  function lineTitle(p){
+    return p.group && p.group!==p.name ? p.group+' — '+p.name : p.name;
+  }
+
+  function orderMessage(collageUrl){
+    var lines=['Привет! Хочу взять:',''];
+    cartEntries().forEach(function(e, i){
+      lines.push((i+1)+'. '+lineTitle(e.p)+' × '+e.qty+' = '+fmt(e.p.price*e.qty));
+      if(!collageUrl){
+        var photo=e.p.rawImage || e.p.cover || '';
+        if(/^https?:\/\//i.test(photo)) lines.push('📷 '+photo);
+      }
+    });
+    lines.push('', 'Итого: '+fmt(cartTotal()));
+    if(collageUrl) lines.push('', '📷 Фото заказа: '+collageUrl);
+    return lines.join('\n');
+  }
+
+  /* Склейку готовим заранее — пока человек смотрит корзину, — чтобы по
+     нажатию чат открылся сразу. Telegram может не пустить переход, если
+     между касанием и открытием прошло несколько секунд загрузки. Готовая
+     склейка запоминается по составу корзины: поменял количество — соберём
+     заново, а старую выбросим. */
+  var collageJob=null, collageTimer=null;
+  function cartSignature(){
+    return Object.keys(cart).sort().map(function(id){ return id+':'+cart[id]; }).join(',');
+  }
+  function collageFor(sig){
+    if(collageJob && collageJob.sig===sig) return collageJob.promise;
+    var items=cartEntries().map(function(e){
+      return { name:e.p.name, group:(e.p.group!==e.p.name ? e.p.group : ''), qty:e.qty, price:e.p.price, image:e.p.image };
+    });
+    var promise=buildCollage(items, cartTotal()).then(uploadCollage);
+    promise.catch(function(e){
+      console.error('collage', e);
+      if(collageJob && collageJob.promise===promise) collageJob=null;
+    });
+    collageJob={ sig:sig, promise:promise };
+    return promise;
+  }
+  function prepareCollage(){
+    if(!ORDER_VIA_DM || !ORDERS_URL) return;
+    clearTimeout(collageTimer);
+    if(!Object.keys(cart).length) return;
+    // Пауза — чтобы серия «+ + +» не выгружала по картинке на каждое касание
+    collageTimer=setTimeout(function(){ collageFor(cartSignature()); }, 800);
+  }
+
+  function withTimeout(promise, ms){
+    return Promise.race([promise, new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, ms); })]);
+  }
+
+  function openDM(collageUrl){
+    var url='https://t.me/'+ADMIN_USERNAME+'?text='+encodeURIComponent(orderMessage(collageUrl));
+    try{
+      if(tg && tg.openTelegramLink){ tg.openTelegramLink(url); return; }
+    }catch(e){}
+    window.open(url, '_blank') || (location.href=url);
+  }
+
+  var dmBusy=false;
+  async function orderViaDM(){
+    if(dmBusy) return;
+    haptic('medium');
+    if(!ORDERS_URL){ openDM(''); return; }
+    clearTimeout(collageTimer);
+    dmBusy=true;
+    checkoutBtn.textContent='Готовлю заказ…';
+    checkoutBtn.classList.add('idle');
+    var url='';
+    try{ url=await withTimeout(collageFor(cartSignature()), 12000); }
+    catch(e){ console.error('collage', e); }
+    dmBusy=false;
+    checkoutBtn.textContent=CHECKOUT_LABEL;
+    checkoutBtn.classList.remove('idle');
+    openDM(url);
+  }
+
   document.getElementById('checkoutBtn').onclick=function(){
     if(!Object.keys(cart).length){ toast('Корзина пуста'); return; }
+    if(ORDER_VIA_DM){ orderViaDM(); return; }
 
     // Состав заказа тут не повторяем: он только что был на экране корзины,
     // с которого сюда и пришли.

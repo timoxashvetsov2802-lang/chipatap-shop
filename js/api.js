@@ -26,6 +26,9 @@ export const ORDERS_TOKEN = CFG.ORDERS_TOKEN || '';
 
 export const BOT_USERNAME = 'chipatapa_bot';
 
+/* Ник продавца (без @): заказ уходит ему в личку готовым сообщением. */
+export const ADMIN_USERNAME = String(CFG.ADMIN_USERNAME || '').replace(/^@/, '').trim();
+
 async function loadCSV(url){
   var res = await fetch(fresh(url), NO_CACHE);
   if(!res.ok) throw new Error('HTTP '+res.status);
@@ -64,6 +67,21 @@ export function postToGAS(url, payload){
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(payload)
   }).catch(function(e){ console.error('GAS error', e); });
+}
+
+/* Склейку корзины выгружаем через Apps Script заказов: он кладёт её на imgbb
+   своим ключом и возвращает прямую ссылку. Здесь ответ нужен, поэтому не
+   no-cors, как у postToGAS: Apps Script отвечает с CORS-заголовком. */
+export async function uploadCollage(base64){
+  if(!ORDERS_URL) throw new Error('ORDERS_GAS_URL не задан');
+  var res = await fetch(ORDERS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({ action:'collage', token:ORDERS_TOKEN, image:base64 })
+  });
+  var data = await res.json();
+  if(!data.ok || !data.url) throw new Error(data.error || 'нет ссылки');
+  return data.url;
 }
 
 /* Отзывы и идеи. Если Apps Script не настроен — фолбэк на старый способ

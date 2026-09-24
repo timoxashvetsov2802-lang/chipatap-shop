@@ -206,3 +206,33 @@ body.scroll-locked{ position:fixed; left:0; right:0; width:100%; overflow:hidden
   position:fixed; bottom:max(18px,env(safe-area-inset-bottom)); left:0; right:0;
   text-align:center; color:rgba(255,255,255,.65); font-size:12px; pointer-events:none;
 }
+
+/* Оценка в отзыве. Звёзды крупные, каждая — отдельная кнопка с пальцевой
+   зоной 44px: мелкие символы в строку промахивались и не читались. Пустая —
+   контур, выбранная — залитая, под ними словами: «4 из 5 · Хорошо». */
+.rate-box{
+  background:var(--bg); border-radius:14px;
+  padding:12px 12px 10px; margin-bottom:10px; text-align:center;
+}
+.rate-title{ font-size:13px; font-weight:700; margin-bottom:6px; }
+.star-picker{ display:flex; justify-content:center; gap:2px; }
+.star-btn{
+  width:48px; height:48px; padding:6px;
+  background:none; border:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.star-btn svg{
+  width:100%; height:100%;
+  fill:none; stroke:var(--hint); stroke-width:1.6; stroke-linejoin:round;
+  transition:fill .15s, stroke .15s, transform .15s;
+}
+.star-btn.on svg{ fill:var(--hit); stroke:var(--hit); }
+.star-btn:active svg{ transform:scale(.88); }
+.star-btn.pop svg{ animation:star-pop .28s cubic-bezier(.2,.9,.3,1.4); }
+@keyframes star-pop{ 0%{ transform:scale(.7); } 100%{ transform:scale(1); } }
+.rate-caption{ margin-top:4px; font-size:13px; color:var(--hint); min-height:18px; }
+.rate-caption.set{ color:var(--text); }
+.rate-caption b{ color:var(--hit); }
+/* Пока оценки нет, кнопка отправки приглушена — но нажимается и объясняет,
+   чего не хватает, а не молчит как disabled. */
+.checkout-btn.idle{ opacity:.45; }
