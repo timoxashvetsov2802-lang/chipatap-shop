@@ -69,19 +69,21 @@ export function postToGAS(url, payload){
   }).catch(function(e){ console.error('GAS error', e); });
 }
 
-/* Склейку корзины выгружаем через Apps Script заказов: он кладёт её на imgbb
-   своим ключом и возвращает прямую ссылку. Здесь ответ нужен, поэтому не
-   no-cors, как у postToGAS: Apps Script отвечает с CORS-заголовком. */
-export async function uploadCollage(base64){
+/* Склейку корзины отдаём Apps Script заказов, а он от имени бота присылает
+   её продавцу настоящей фотографией с составом заказа. initData уходит
+   вместе с ней: по подписи Telegram скрипт проверяет, кто покупатель.
+   Здесь ответ нужен, поэтому не no-cors, как у postToGAS: Apps Script
+   отвечает с CORS-заголовком. */
+export async function sendOrderPhoto(base64, text, uid){
   if(!ORDERS_URL) throw new Error('ORDERS_GAS_URL не задан');
   var res = await fetch(ORDERS_URL, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({ action:'collage', token:ORDERS_TOKEN, image:base64 })
+    body:JSON.stringify({ action:'order_photo', token:ORDERS_TOKEN, image:base64, text:text,
+                          init_data:(tg && tg.initData) || '', uid:uid || '' })
   });
   var data = await res.json();
-  if(!data.ok || !data.url) throw new Error(data.error || 'нет ссылки');
-  return data.url;
+  if(!data.ok) throw new Error(data.error || 'не отправилось');
 }
 
 /* Отзывы и идеи. Если Apps Script не настроен — фолбэк на старый способ

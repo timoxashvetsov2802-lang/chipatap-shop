@@ -2,7 +2,7 @@
 import { buildCollage } from './collage.js';
 import { esc, attr, fmt, plural, otzyv, starsSmall, starsHTML, parseStamp } from './format.js';
 import { CSV_URL, BALANCE_CSV_URL, REVIEWS_CSV_URL, GAS_URL, ORDERS_URL,
-         ORDERS_TOKEN, BOT_USERNAME, ADMIN_USERNAME, uploadCollage, fetchProducts, fetchReviews, fetchBalance,
+         ORDERS_TOKEN, BOT_USERNAME, ADMIN_USERNAME, sendOrderPhoto, fetchProducts, fetchReviews, fetchBalance,
          postToGAS, sendToGAS } from './api.js';
 import { normalizeImageUrl, placeholderHTML, thumbContent } from './images.js';
 import { tg, inRealTelegram, openedFromKeyboardButton, MY_UID, MY_NAME,
@@ -1124,12 +1124,13 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
   }
 
   /* Пока заказы идут напрямую: вместо оформления через бота покупателя
-     перекидывает в личку продавцу, где уже набрано, что он берёт. Фото всех
-     товаров склеены в одну картинку (js/collage.js) и стоят в сообщении
-     одной ссылкой — Telegram разворачивает её превью, и продавец видит весь
-     заказ, а не только первый товар. Не вышла склейка — в сообщение идут
-     ссылки на фото по отдельности. Прежнее оформление никуда не делось —
-     вернётся, если убрать ADMIN_USERNAME из config.js. */
+     перекидывает в личку продавцу, где уже набрано, что он берёт. Ссылкой
+     t.me/<ник>?text= фото не приложить, а ссылка на картинку в тексте
+     выглядит мусором. Поэтому фото всех товаров склеиваются в одну картинку
+     (js/collage.js), и её от имени бота получает сам продавец — настоящей
+     фотографией, с подписью, кто заказал. В личку уходит только текст.
+     Прежнее оформление никуда не делось — вернётся, если убрать
+     ADMIN_USERNAME из config.js. */
   var ORDER_VIA_DM = !!ADMIN_USERNAME;
   var checkoutBtn = document.getElementById('checkoutBtn');
   var CHECKOUT_LABEL = ORDER_VIA_DM ? 'Написать продавцу' : checkoutBtn.textContent;
@@ -1145,25 +1146,18 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     return p.group && p.group!==p.name ? p.group+' — '+p.name : p.name;
   }
 
-  function orderMessage(collageUrl){
+  function orderMessage(){
     var lines=['Привет! Хочу взять:',''];
     cartEntries().forEach(function(e, i){
       lines.push((i+1)+'. '+lineTitle(e.p)+' × '+e.qty+' = '+fmt(e.p.price*e.qty));
-      if(!collageUrl){
-        var photo=e.p.rawImage || e.p.cover || '';
-        if(/^https?:\/\//i.test(photo)) lines.push('📷 '+photo);
-      }
     });
     lines.push('', 'Итого: '+fmt(cartTotal()));
-    if(collageUrl) lines.push('', '📷 Фото заказа: '+collageUrl);
     return lines.join('\n');
   }
 
-  /* Склейку готовим заранее — пока человек смотрит корзину, — чтобы по
-     нажатию чат открылся сразу. Telegram может не пустить переход, если
-     между касанием и открытием прошло несколько секунд загрузки. Готовая
-     склейка запоминается по составу корзины: поменял количество — соберём
-     заново, а старую выбросим. */
+  /* Склейку рисуем заранее — пока человек смотрит корзину, — чтобы по
+     нажатию оставалось только отправить её. Готовая склейка запоминается
+     по составу корзины: поменял количество — нарисуем заново. */
   var collageJob=null, collageTimer=null;
   function cartSignature(){
     return Object.keys(cart).sort().map(function(id){ return id+':'+cart[id]; }).join(',');
@@ -1173,7 +1167,7 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     var items=cartEntries().map(function(e){
       return { name:e.p.name, group:(e.p.group!==e.p.name ? e.p.group : ''), qty:e.qty, price:e.p.price, image:e.p.image };
     });
-    var promise=buildCollage(items, cartTotal()).then(uploadCollage);
+    var promise=buildCollage(items, cartTotal());
     promise.catch(function(e){
       console.error('collage', e);
       if(collageJob && collageJob.promise===promise) collageJob=null;
@@ -1185,7 +1179,7 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     if(!ORDER_VIA_DM || !ORDERS_URL) return;
     clearTimeout(collageTimer);
     if(!Object.keys(cart).length) return;
-    // Пауза — чтобы серия «+ + +» не выгружала по картинке на каждое касание
+    // Пауза — чтобы серия «+ + +» не рисовала по картинке на каждое касание
     collageTimer=setTimeout(function(){ collageFor(cartSignature()); }, 800);
   }
 
@@ -1193,8 +1187,8 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
     return Promise.race([promise, new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, ms); })]);
   }
 
-  function openDM(collageUrl){
-    var url='https://t.me/'+ADMIN_USERNAME+'?text='+encodeURIComponent(orderMessage(collageUrl));
+  function openDM(text){
+    var url='https://t.me/'+ADMIN_USERNAME+'?text='+encodeURIComponent(text);
     try{
       if(tg && tg.openTelegramLink){ tg.openTelegramLink(url); return; }
     }catch(e){}
@@ -1205,18 +1199,22 @@ import { parseStock, rawToProduct, stockLabel, stockClass, stockLineHTML,
   async function orderViaDM(){
     if(dmBusy) return;
     haptic('medium');
-    if(!ORDERS_URL){ openDM(''); return; }
+    var text=orderMessage();
+    if(!ORDERS_URL){ openDM(text); return; }
     clearTimeout(collageTimer);
     dmBusy=true;
     checkoutBtn.textContent='Готовлю заказ…';
     checkoutBtn.classList.add('idle');
-    var url='';
-    try{ url=await withTimeout(collageFor(cartSignature()), 12000); }
-    catch(e){ console.error('collage', e); }
+    // Фото не ушло — заказ всё равно уходит текстом: продавец и так видит,
+    // что берут, а держать покупателя из-за картинки незачем.
+    try{
+      var sig=cartSignature();
+      await withTimeout(collageFor(sig).then(function(img){ return sendOrderPhoto(img, text, MY_UID); }), 12000);
+    }catch(e){ console.error('order photo', e); }
     dmBusy=false;
     checkoutBtn.textContent=CHECKOUT_LABEL;
     checkoutBtn.classList.remove('idle');
-    openDM(url);
+    openDM(text);
   }
 
   document.getElementById('checkoutBtn').onclick=function(){
