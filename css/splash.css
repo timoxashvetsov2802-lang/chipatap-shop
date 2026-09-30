@@ -44,9 +44,9 @@
      первым кадром, и лишняя четверть мегабайта здесь дороже всего. Первая
      строка остаётся запасной для браузеров без image-set. */
   background:center/contain no-repeat;
-  background-image:url("../img/cloud.png?v=a191b20");
-  background-image:image-set(url("../img/cloud.webp?v=a191b20") type("image/webp"),
-                             url("../img/cloud.png?v=a191b20") type("image/png"));
+  background-image:url("../img/cloud.png?v=4fd112b");
+  background-image:image-set(url("../img/cloud.webp?v=4fd112b") type("image/webp"),
+                             url("../img/cloud.png?v=4fd112b") type("image/png"));
   opacity:0;
   transform:scale(.6);
   animation:splash-pop .55s cubic-bezier(.2,.9,.3,1.25) .05s forwards;

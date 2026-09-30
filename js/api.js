@@ -24,7 +24,7 @@ export const GAS_URL         = CFG.GAS_URL || '';
 export const ORDERS_URL   = CFG.ORDERS_GAS_URL || '';
 export const ORDERS_TOKEN = CFG.ORDERS_TOKEN || '';
 
-export const BOT_USERNAME = 'chipatapa_bot';
+export const BOT_USERNAME = 'shop_chipatapa_bot';
 
 /* Ник продавца (без @): заказ уходит ему в личку готовым сообщением. */
 export const ADMIN_USERNAME = String(CFG.ADMIN_USERNAME || '').replace(/^@/, '').trim();
